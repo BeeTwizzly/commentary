@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -93,3 +95,62 @@ class ParsedWorkbook:
             holdings.extend(strategy.contributors)
             holdings.extend(strategy.detractors)
         return holdings
+
+
+@dataclass(frozen=True)
+class ThesisEntry:
+    """
+    Investment thesis for a single holding.
+
+    Attributes:
+        ticker: Stock ticker symbol
+        company_name: Full company name
+        thesis_summary: 2-4 sentence investment thesis
+        last_updated: Date thesis was last reviewed/updated
+        analyst: Analyst who owns this thesis
+    """
+    ticker: str
+    company_name: str
+    thesis_summary: str
+    last_updated: date
+    analyst: str
+
+    def is_stale(self, days: int = 180) -> bool:
+        """Check if thesis hasn't been updated in given number of days."""
+        age = (date.today() - self.last_updated).days
+        return age > days
+
+    def age_days(self) -> int:
+        """Return age of thesis in days."""
+        return (date.today() - self.last_updated).days
+
+
+@dataclass(frozen=True)
+class ThesisLookupResult:
+    """
+    Result of a thesis lookup operation.
+
+    Attributes:
+        ticker: Requested ticker
+        found: Whether thesis was found in registry
+        entry: ThesisEntry if found, None otherwise
+        placeholder_text: Fallback text if not found
+    """
+    ticker: str
+    found: bool
+    entry: Optional[ThesisEntry]
+    placeholder_text: str
+
+    @property
+    def thesis_text(self) -> str:
+        """Return thesis summary or placeholder."""
+        if self.entry:
+            return self.entry.thesis_summary
+        return self.placeholder_text
+
+    @property
+    def company_name(self) -> str:
+        """Return company name or ticker as fallback."""
+        if self.entry:
+            return self.entry.company_name
+        return self.ticker
