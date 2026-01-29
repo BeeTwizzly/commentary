@@ -4,7 +4,7 @@ This document tracks the build progress of the Portfolio Commentary Generator.
 
 ---
 
-## Current Phase: 1 - Excel Parser
+## Current Phase: 2 - Thesis Registry
 
 **Status:** ✅ Complete
 
@@ -54,11 +54,32 @@ This document tracks the build progress of the Portfolio Commentary Generator.
 - **Dependencies added:** None (openpyxl already in requirements.txt)
 
 ### Phase 2: Thesis Registry
-- **Status:** 🔲 Not started
-- **Planned deliverables:**
-  - `src/data/thesis_registry.py`
-  - `data/thesis_registry.csv`
-  - `tests/test_thesis_registry.py`
+- **Status:** ✅ Complete
+- **Date:** 2026-01-29
+- **What was built:**
+  - Updated `src/models.py` with ThesisEntry and ThesisLookupResult classes
+  - `src/data/thesis_registry.py` - CSV-backed thesis storage and lookup
+  - `tests/test_thesis_registry.py` - Comprehensive unit tests (20+ test cases)
+  - `data/thesis_registry.csv` - Initial registry with 15 sample theses
+- **How to verify:**
+  ```bash
+  # Run tests
+  pytest tests/test_thesis_registry.py -v
+
+  # Quick smoke test
+  python -c "
+  from src.data.thesis_registry import ThesisRegistry
+  r = ThesisRegistry.load('data/thesis_registry.csv')
+  print(f'Loaded {len(r)} theses')
+  print(r.lookup('NVDA').thesis_text[:50] + '...')
+  "
+  ```
+- **Known issues:** None
+- **Key decisions:**
+  - CSV format chosen for simplicity and manual editability
+  - Lookup returns structured result (not None) so generation always proceeds
+  - Case-insensitive ticker matching
+  - Stale thesis detection for maintenance visibility
 
 ### Phase 3: Exemplar Parser
 - **Status:** 🔲 Not started
