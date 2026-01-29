@@ -4,7 +4,7 @@ This document tracks the build progress of the Portfolio Commentary Generator.
 
 ---
 
-## Current Phase: 0 - Scaffolding
+## Current Phase: 1 - Excel Parser
 
 **Status:** ✅ Complete
 
@@ -34,12 +34,24 @@ This document tracks the build progress of the Portfolio Commentary Generator.
 ---
 
 ### Phase 1: Excel Parser
-- **Status:** 🔲 Not started
-- **Planned deliverables:**
-  - `src/parsers/excel_parser.py`
-  - `src/models.py`
-  - `tests/test_excel_parser.py`
-  - `data/synthetic/sample_performance.xlsx`
+- **Status:** ✅ Complete
+- **Date:** 2026-01-29
+- **What was built:**
+  - `src/models.py` - Core data classes (HoldingData, StrategyHoldings, ParsedWorkbook)
+  - `src/parsers/excel_parser.py` - Multi-tab Excel parser with top/bottom 5 extraction
+  - `tests/test_excel_parser.py` - Comprehensive unit tests
+  - `scripts/create_sample_excel.py` - Synthetic data generator
+  - `data/synthetic/sample_performance.xlsx` - Test fixture
+- **How to verify:**
+  ```bash
+  # Run tests
+  pytest tests/test_excel_parser.py -v
+
+  # Generate sample Excel (if not present)
+  python scripts/create_sample_excel.py
+  ```
+- **Known issues:** None
+- **Dependencies added:** None (openpyxl already in requirements.txt)
 
 ### Phase 2: Thesis Registry
 - **Status:** 🔲 Not started
