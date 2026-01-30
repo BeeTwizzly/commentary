@@ -1,0 +1,130 @@
+{
+  "metadata": {
+    "total_blurbs": 10,
+    "unique_tickers": 10,
+    "contributors": 5,
+    "detractors": 5
+  },
+  "blurbs_by_ticker": {
+    "NVDA": [
+      {
+        "ticker": "NVDA",
+        "company_name": "NVIDIA Corporation",
+        "blurb_text": "NVIDIA continued its exceptional performance as datacenter revenue grew 120% year-over-year, driven by insatiable demand for AI training infrastructure. Management raised guidance for the third consecutive quarter, citing enterprise adoption broadening beyond hyperscalers. While valuation appears extended, the duration of the AI investment cycle supports our overweight position.",
+        "quarter": "Q3",
+        "year": 2025,
+        "blurb_type": "contributor",
+        "word_count": 48,
+        "source_file": "synthetic_exemplars.docx"
+      }
+    ],
+    "AAPL": [
+      {
+        "ticker": "AAPL",
+        "company_name": "Apple Inc.",
+        "blurb_text": "Apple contributed positively as Services revenue inflected higher, growing 18% and demonstrating the recurring nature of its ecosystem monetization. iPhone 16 early demand data suggests a stronger upgrade cycle than feared. The capital return program continues to provide valuation support. We maintain our position.",
+        "quarter": "Q3",
+        "year": 2025,
+        "blurb_type": "contributor",
+        "word_count": 44,
+        "source_file": "synthetic_exemplars.docx"
+      }
+    ],
+    "MSFT": [
+      {
+        "ticker": "MSFT",
+        "company_name": "Microsoft Corporation",
+        "blurb_text": "Microsoft delivered robust results with Azure growth reaccelerating to 32%, ahead of expectations. Copilot adoption across the enterprise suite is gaining traction with Fortune 500 customers. The combination of cloud scale and AI positioning creates a compelling long-term growth profile.",
+        "quarter": "Q2",
+        "year": 2025,
+        "blurb_type": "contributor",
+        "word_count": 40,
+        "source_file": "synthetic_exemplars.docx"
+      }
+    ],
+    "AMZN": [
+      {
+        "ticker": "AMZN",
+        "company_name": "Amazon.com Inc.",
+        "blurb_text": "Amazon added to performance as AWS margins expanded meaningfully while maintaining 20%+ growth. The advertising business continues to compound at impressive rates with minimal incremental investment. Retail profitability is normalizing faster than anticipated. We remain constructive.",
+        "quarter": "Q2",
+        "year": 2025,
+        "blurb_type": "contributor",
+        "word_count": 36,
+        "source_file": "synthetic_exemplars.docx"
+      }
+    ],
+    "META": [
+      {
+        "ticker": "META",
+        "company_name": "Meta Platforms Inc.",
+        "blurb_text": "Meta contributed as engagement metrics across the family of apps reached all-time highs. Reels monetization is closing the gap with Stories faster than expected. The company's AI capabilities are underappreciated by the market. Cost discipline has been maintained following efficiency initiatives.",
+        "quarter": "Q1",
+        "year": 2025,
+        "blurb_type": "contributor",
+        "word_count": 41,
+        "source_file": "synthetic_exemplars.docx"
+      }
+    ],
+    "INTC": [
+      {
+        "ticker": "INTC",
+        "company_name": "Intel Corporation",
+        "blurb_text": "Intel detracted from returns as the foundry roadmap faced additional delays. The 18A process node timeline slipped by two quarters, raising questions about competitive positioning. While valuation is undemanding, execution risk remains elevated. We have trimmed the position.",
+        "quarter": "Q3",
+        "year": 2025,
+        "blurb_type": "detractor",
+        "word_count": 38,
+        "source_file": "synthetic_exemplars.docx"
+      }
+    ],
+    "PYPL": [
+      {
+        "ticker": "PYPL",
+        "company_name": "PayPal Holdings Inc.",
+        "blurb_text": "PayPal weighed on performance amid intensifying competition in digital payments. Take rates continue to face pressure from both traditional card networks and newer fintech entrants. Management's strategic pivot shows early signs of progress but will require patience. We are monitoring closely.",
+        "quarter": "Q3",
+        "year": 2025,
+        "blurb_type": "detractor",
+        "word_count": 41,
+        "source_file": "synthetic_exemplars.docx"
+      }
+    ],
+    "DIS": [
+      {
+        "ticker": "DIS",
+        "company_name": "The Walt Disney Company",
+        "blurb_text": "Disney detracted as streaming losses persisted longer than anticipated. Parks demand showed signs of normalization following exceptional post-pandemic strength. Content costs remain elevated given competitive dynamics. The path to profitability in direct-to-consumer is taking longer than expected.",
+        "quarter": "Q2",
+        "year": 2025,
+        "blurb_type": "detractor",
+        "word_count": 37,
+        "source_file": "synthetic_exemplars.docx"
+      }
+    ],
+    "BA": [
+      {
+        "ticker": "BA",
+        "company_name": "Boeing Company",
+        "blurb_text": "Boeing hurt returns as production challenges in the 737 MAX program continued to constrain deliveries. Supply chain issues have proven more persistent than management guided. The defense backlog provides some stability but commercial execution is critical. Position sized appropriately for ongoing uncertainty.",
+        "quarter": "Q2",
+        "year": 2025,
+        "blurb_type": "detractor",
+        "word_count": 42,
+        "source_file": "synthetic_exemplars.docx"
+      }
+    ],
+    "MRNA": [
+      {
+        "ticker": "MRNA",
+        "company_name": "Moderna Inc.",
+        "blurb_text": "Moderna detracted as COVID vaccine demand continued its secular decline. The pipeline of non-COVID products remains promising but is several years from meaningful revenue contribution. Cash burn has increased as R&D investments expand. We await clearer clinical catalysts before adding to the position.",
+        "quarter": "Q1",
+        "year": 2025,
+        "blurb_type": "detractor",
+        "word_count": 43,
+        "source_file": "synthetic_exemplars.docx"
+      }
+    ]
+  }
+}

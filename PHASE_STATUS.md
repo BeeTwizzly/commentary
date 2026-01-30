@@ -4,7 +4,7 @@ This document tracks the build progress of the Portfolio Commentary Generator.
 
 ---
 
-## Current Phase: 2 - Thesis Registry
+## Current Phase: 3 - Exemplar Parser
 
 **Status:** ✅ Complete
 
@@ -82,12 +82,38 @@ This document tracks the build progress of the Portfolio Commentary Generator.
   - Stale thesis detection for maintenance visibility
 
 ### Phase 3: Exemplar Parser
-- **Status:** 🔲 Not started
-- **Planned deliverables:**
-  - `src/parsers/exemplar_parser.py`
-  - `data/exemplars/exemplars.json`
-  - `tests/test_exemplar_parser.py`
-  - `scripts/parse_exemplars.py`
+- **Status:** ✅ Complete
+- **Date:** 2026-01-30
+- **What was built:**
+  - Updated `src/models.py` with ExemplarBlurb and ExemplarSelection classes
+  - `src/parsers/exemplar_parser.py` - Word document parser for blurb extraction
+  - `src/parsers/exemplar_selector.py` - Few-shot exemplar selection logic
+  - `tests/test_exemplar_parser.py` - Comprehensive unit tests (25+ test cases)
+  - `scripts/parse_exemplars.py` - CLI tool for parsing docs and generating JSON
+  - `data/exemplars/exemplars.json` - Initial exemplars (10 synthetic blurbs)
+- **How to verify:**
+  ```bash
+  # Run tests
+  pytest tests/test_exemplar_parser.py -v
+
+  # Regenerate synthetic exemplars
+  PYTHONPATH=. python scripts/parse_exemplars.py --synthetic
+
+  # Quick smoke test
+  python -c "
+  from src.parsers.exemplar_selector import ExemplarSelector
+  s = ExemplarSelector.load('data/exemplars/exemplars.json')
+  print(f'Loaded {s.total_blurbs} blurbs for {len(s.available_tickers)} tickers')
+  sel = s.select('NVDA', is_contributor=True)
+  print(sel.format_for_prompt()[:200] + '...')
+  "
+  ```
+- **Known issues:** None
+- **Key decisions:**
+  - Regex pattern handles "Company Name (TICKER):" format with variations
+  - Selector prioritizes same-ticker exemplars for continuity
+  - Synthetic exemplars provided for testing without real docs
+  - JSON format enables fast loading without re-parsing Word docs
 
 ### Phase 4: Prompt Builder
 - **Status:** 🔲 Not started
