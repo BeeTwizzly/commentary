@@ -364,9 +364,12 @@ def render_review_item(item: ReviewItem, expanded: bool = False) -> None:
 
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("Regenerate", key=f"regen_{item.ticker}", disabled=True):
-                    pass
-                st.caption("Return to Upload view to regenerate")
+                if st.button("Regenerate", key=f"regen_{item.ticker}"):
+                    st.session_state.regenerate_request = {
+                        "strategy": item.strategy,
+                        "ticker": item.ticker,
+                    }
+                    st.rerun()
             with col2:
                 if st.button("Skip", key=f"skip_{item.ticker}"):
                     item.reject()
@@ -454,7 +457,7 @@ def render_variation_tabs(item: ReviewItem) -> None:
 
 def render_item_actions(item: ReviewItem) -> None:
     """Render action buttons for a review item."""
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
         approve_label = "Approved" if item.status == ApprovalStatus.APPROVED else "Approve"
@@ -495,6 +498,20 @@ def render_item_actions(item: ReviewItem) -> None:
             use_container_width=True,
         ):
             item.reset()
+            st.rerun()
+
+    with col5:
+        if st.button(
+            "Regenerate",
+            key=f"regen_success_{item.ticker}",
+            type="secondary",
+            use_container_width=True,
+            help="Generate new commentary variations",
+        ):
+            st.session_state.regenerate_request = {
+                "strategy": item.strategy,
+                "ticker": item.ticker,
+            }
             st.rerun()
 
     # Notes section

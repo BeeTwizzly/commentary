@@ -81,6 +81,9 @@ def init_session_state() -> None:
 
         # Export state
         "trigger_export": False,
+
+        # Regeneration state
+        "regenerate_request": None,  # {"strategy": str, "ticker": str}
     }
 
     for key, default in defaults.items():
@@ -512,6 +515,127 @@ def run_generation(holdings: list[tuple[str, HoldingData]]) -> None:
     st.rerun()
 
 
+def regenerate_single_item(strategy_name: str, ticker: str) -> bool:
+    """
+    Regenerate commentary for a single holding.
+
+    Args:
+        strategy_name: Strategy the holding belongs to
+        ticker: Ticker symbol of holding to regenerate
+
+    Returns:
+        True if regeneration succeeded, False otherwise
+    """
+    # Find the review session and item
+    session = st.session_state.review_sessions.get(strategy_name)
+    if not session:
+        st.error(f"Review session not found for strategy: {strategy_name}")
+        return False
+
+    item = session.get_item_by_ticker(ticker)
+    if not item:
+        st.error(f"Item not found: {ticker}")
+        return False
+
+    holding = item.holding
+
+    # Load resources (these are cached)
+    registry = load_thesis_registry()
+    exemplars = load_exemplars()
+    prompt_builder = PromptBuilder()
+
+    quarter_str = f"{st.session_state.quarter} {st.session_state.year}"
+    num_variations = st.session_state.num_variations
+
+    # Get LLM client
+    try:
+        config = get_config()
+        if not config.llm.is_configured:
+            st.error("API key not configured. Set OPENAI_API_KEY.")
+            return False
+        client = LLMClient(config.llm)
+    except Exception as e:
+        st.error(f"Configuration error: {e}")
+        return False
+
+    # Show progress
+    with st.spinner(f"Regenerating commentary for {ticker}..."):
+        try:
+            # Look up thesis
+            thesis_result = registry.lookup(holding.ticker) if registry else None
+            if thesis_result is None:
+                from src.models import ThesisLookupResult
+                thesis_result = ThesisLookupResult(
+                    ticker=holding.ticker,
+                    found=False,
+                    entry=None,
+                    placeholder_text=f"[No thesis on file for {holding.ticker}]",
+                )
+
+            # Get exemplars
+            exemplar_selection = exemplars.select(
+                ticker=holding.ticker,
+                is_contributor=holding.is_contributor,
+            ) if exemplars else None
+
+            if exemplar_selection is None:
+                from src.models import ExemplarSelection
+                exemplar_selection = ExemplarSelection(
+                    target_ticker=holding.ticker,
+                    target_is_contributor=holding.is_contributor,
+                    same_ticker_exemplar=None,
+                    similar_exemplars=[],
+                )
+
+            # Build prompt
+            context = create_prompt_context(
+                holding=holding,
+                thesis=thesis_result,
+                exemplars=exemplar_selection,
+                quarter=quarter_str,
+                strategy_name=strategy_name,
+                num_variations=num_variations,
+            )
+            prompt = prompt_builder.build(context)
+
+            # Generate (sync call)
+            result = client.generate_sync(prompt, num_variations)
+
+            # Update the review item with new result
+            item.result = result
+            item.thesis_found = thesis_result.found
+            item.selected_variation = 0
+            item.edited_text = ""
+            item.status = ApprovalStatus.PENDING
+
+            # Track costs
+            st.session_state.total_cost_usd += result.cost_usd
+            st.session_state.total_tokens += result.usage.total_tokens
+
+            # Also update generation_results for consistency
+            key = f"{strategy_name}|{ticker}"
+            st.session_state.generation_results[key] = {
+                "holding": holding,
+                "strategy": strategy_name,
+                "result": result,
+                "thesis_found": thesis_result.found,
+            }
+
+            if result.success:
+                st.success(f"Regenerated commentary for {ticker}")
+                logger.info("Regenerated %s successfully", ticker)
+                return True
+            else:
+                st.error(f"Regeneration failed: {result.error_message}")
+                logger.warning("Regeneration failed for %s: %s", ticker, result.error_message)
+                return False
+
+        except Exception as e:
+            st.error(f"Error regenerating {ticker}: {e}")
+            logger.exception("Regeneration error for %s", ticker)
+            return False
+
+
 def render_results_preview() -> None:
     """Render a preview of generation results."""
     results = st.session_state.generation_results
@@ -634,6 +758,17 @@ def render_review_view() -> None:
             st.session_state.current_view = "upload"
             st.rerun()
         return
+
+    # Check for regeneration request
+    regen_request = st.session_state.get("regenerate_request")
+    if regen_request:
+        strategy = regen_request.get("strategy")
+        ticker = regen_request.get("ticker")
+        st.session_state.regenerate_request = None  # Clear the request
+
+        if strategy and ticker:
+            regenerate_single_item(strategy, ticker)
+            st.rerun()
 
     # Check for export trigger
     if st.session_state.get("trigger_export"):
