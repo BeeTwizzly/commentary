@@ -4,7 +4,7 @@ This document tracks the build progress of the Portfolio Commentary Generator.
 
 ---
 
-## Current Phase: 6 - Core UI
+## Current Phase: 7 - Review UI
 
 **Status:** ✅ Complete
 
@@ -215,10 +215,39 @@ This document tracks the build progress of the Portfolio Commentary Generator.
   - Variation tabs for each holding
 
 ### Phase 7: Review UI
-- **Status:** 🔲 Not started
-- **Planned deliverables:**
-  - Review dashboard
-  - Selection and editing interface
+- **Status:** ✅ Complete
+- **Date:** 2026-01-30
+- **What was built:**
+  - `src/ui/review.py` - Complete review module with ApprovalStatus, ReviewItem, ReviewSession classes
+  - Updated `app.py` - View routing, transition_to_review, render_review_view functions
+  - `tests/test_review.py` - Comprehensive unit tests (60+ test cases)
+- **How to verify:**
+  ```bash
+  # Run tests
+  pytest tests/test_review.py -v
+
+  # Quick smoke test
+  python -c "
+  from src.ui.review import ApprovalStatus, ReviewItem, ReviewSession
+  print(f'ApprovalStatus values: {[s.value for s in ApprovalStatus]}')
+  session = ReviewSession(strategy='Test', quarter='Q4 2025')
+  print(f'Session created: {session.strategy}, {session.quarter}')
+  "
+  ```
+- **Known issues:**
+  - Export button triggers placeholder message (Phase 8 will implement)
+- **Key features:**
+  - ApprovalStatus enum (PENDING, APPROVED, REJECTED, NEEDS_EDIT)
+  - ReviewItem with variation selection, text editing, status tracking
+  - ReviewSession with progress tracking, bulk actions, filtering
+  - Navigation between Upload and Review views
+  - Variation tabs with "Use This Version" selection
+  - Inline text editing with word count display
+  - Approve/Reject/Needs Edit/Reset actions per item
+  - Bulk "Approve All Pending" action
+  - Filter by status (All, Pending, Approved, Needs Edit, Rejected)
+  - Export preview section with approved items
+  - Review progress sidebar with contributor/detractor breakdown
 
 ### Phase 8: Export
 - **Status:** 🔲 Not started

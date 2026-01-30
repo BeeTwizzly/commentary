@@ -25,6 +25,13 @@ from src.generation import (
     LLMClient,
     GenerationResult,
 )
+from src.ui.review import (
+    ReviewSession,
+    ReviewItem,
+    ApprovalStatus,
+    init_review_session,
+    render_review_page,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -52,7 +59,7 @@ def init_session_state() -> None:
         "year": get_reporting_year(),
 
         # Generation state
-        "generation_results": {},  # {ticker: GenerationResult}
+        "generation_results": {},  # {key: {holding, strategy, result, thesis_found}}
         "generation_in_progress": False,
         "generation_progress": 0.0,
         "generation_status": "",
@@ -64,6 +71,16 @@ def init_session_state() -> None:
         # Configuration
         "num_variations": 3,
         "config_loaded": False,
+
+        # View state
+        "current_view": "upload",  # upload, review
+
+        # Review state
+        "review_sessions": {},  # strategy_name -> ReviewSession
+        "active_review_strategy": None,
+
+        # Export state
+        "trigger_export": False,
     }
 
     for key, default in defaults.items():
@@ -120,6 +137,31 @@ def load_exemplars() -> ExemplarSelector | None:
 def render_sidebar() -> None:
     """Render the sidebar with configuration options."""
     with st.sidebar:
+        st.header("Navigation")
+
+        # Navigation buttons
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button(
+                "Upload",
+                use_container_width=True,
+                type="primary" if st.session_state.current_view == "upload" else "secondary",
+            ):
+                st.session_state.current_view = "upload"
+                st.rerun()
+        with col2:
+            has_reviews = bool(st.session_state.review_sessions)
+            if st.button(
+                "Review",
+                use_container_width=True,
+                type="primary" if st.session_state.current_view == "review" else "secondary",
+                disabled=not has_reviews,
+            ):
+                st.session_state.current_view = "review"
+                st.rerun()
+
+        st.divider()
+
         st.header("Configuration")
 
         # Quarter selection
@@ -166,6 +208,14 @@ def render_sidebar() -> None:
             st.success(f"Exemplars: {exemplars.total_blurbs} blurbs")
         else:
             st.warning("No exemplars loaded")
+
+        # Review progress
+        if st.session_state.review_sessions:
+            st.divider()
+            st.subheader("Review Progress")
+            for strategy_name, session in st.session_state.review_sessions.items():
+                st.progress(session.completion_pct / 100)
+                st.caption(f"{strategy_name}: {session.approved_count}/{session.total_count}")
 
         # Cost display
         if st.session_state.total_cost_usd > 0:
@@ -523,18 +573,92 @@ def render_results_preview() -> None:
 
     # Action buttons
     st.subheader("Next Steps")
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("Regenerate All", use_container_width=True):
             st.session_state.generation_results = {}
             st.rerun()
     with col2:
+        if st.button("Go to Review", type="primary", use_container_width=True):
+            transition_to_review()
+            st.rerun()
+    with col3:
         st.button(
             "Export to Word",
             use_container_width=True,
             disabled=True,
             help="Coming in Phase 8",
         )
+
+
+def transition_to_review() -> None:
+    """Transition from generation results to review view."""
+    results = st.session_state.generation_results
+    if not results:
+        return
+
+    quarter_str = f"{st.session_state.quarter} {st.session_state.year}"
+
+    # Group results by strategy
+    by_strategy = {}
+    for key, data in results.items():
+        strategy = data.get("strategy")
+        if strategy:
+            if strategy not in by_strategy:
+                by_strategy[strategy] = {}
+            by_strategy[strategy][key] = data
+
+    # Create review sessions for each strategy
+    for strategy_name, strategy_results in by_strategy.items():
+        session = init_review_session(
+            strategy=strategy_name,
+            quarter=quarter_str,
+            generation_results=strategy_results,
+        )
+        st.session_state.review_sessions[strategy_name] = session
+
+    # Set active strategy to first one
+    if by_strategy:
+        st.session_state.active_review_strategy = list(by_strategy.keys())[0]
+
+    st.session_state.current_view = "review"
+
+
+def render_review_view() -> None:
+    """Render the review page."""
+    sessions = st.session_state.review_sessions
+
+    if not sessions:
+        st.warning("No review sessions available. Generate commentary first.")
+        if st.button("Go to Upload"):
+            st.session_state.current_view = "upload"
+            st.rerun()
+        return
+
+    # Check for export trigger
+    if st.session_state.get("trigger_export"):
+        st.session_state.trigger_export = False
+        st.info("Export functionality coming in Phase 8!")
+
+    # Strategy selector if multiple strategies
+    if len(sessions) > 1:
+        strategy_names = list(sessions.keys())
+        active = st.session_state.active_review_strategy
+        if active not in strategy_names:
+            active = strategy_names[0]
+
+        selected = st.selectbox(
+            "Select Strategy to Review",
+            options=strategy_names,
+            index=strategy_names.index(active) if active in strategy_names else 0,
+        )
+        st.session_state.active_review_strategy = selected
+        session = sessions[selected]
+    else:
+        session = list(sessions.values())[0]
+        st.session_state.active_review_strategy = list(sessions.keys())[0]
+
+    render_review_page(session)
 
 
 def main() -> None:
@@ -548,15 +672,19 @@ def main() -> None:
     # Sidebar
     render_sidebar()
 
-    # Main content
-    render_upload_section()
+    # Route based on current view
+    if st.session_state.current_view == "review":
+        render_review_view()
+    else:
+        # Upload view
+        render_upload_section()
 
-    if st.session_state.workbook:
-        render_strategy_selection()
-        render_generation_section()
+        if st.session_state.workbook:
+            render_strategy_selection()
+            render_generation_section()
 
-    # Results
-    render_results_preview()
+        # Results
+        render_results_preview()
 
     # Footer
     st.divider()
