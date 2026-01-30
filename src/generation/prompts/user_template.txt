@@ -1,0 +1,42 @@
+## Assignment: {quarter} Commentary
+
+**Strategy**: {strategy_name}
+**Stock**: {company_name} ({ticker})
+**Classification**: {contribution_type}
+
+---
+
+### Performance Data
+
+{performance_summary}
+
+---
+
+### Investment Thesis
+
+{thesis_text}
+
+---
+
+### Style Reference
+
+The following examples demonstrate our preferred writing style. Match this tone and structure:
+
+{exemplars_text}
+
+---
+
+### Generation Request
+
+{tone_guidance}
+
+Please write {num_variations} distinct commentary variations for **{company_name} ({ticker})**.
+
+Requirements for each variation:
+- Length: 4-6 sentences (50-100 words)
+- Must reference the attribution data provided
+- Must connect performance to investment thesis or fundamental factors
+- Must include forward-looking positioning statement
+- Must match the professional tone shown in examples
+
+Format your response with clear labels: [A], [B], [C]

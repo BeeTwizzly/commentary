@@ -4,7 +4,7 @@ This document tracks the build progress of the Portfolio Commentary Generator.
 
 ---
 
-## Current Phase: 3 - Exemplar Parser
+## Current Phase: 4 - Prompt Builder
 
 **Status:** ✅ Complete
 
@@ -116,11 +116,36 @@ This document tracks the build progress of the Portfolio Commentary Generator.
   - JSON format enables fast loading without re-parsing Word docs
 
 ### Phase 4: Prompt Builder
-- **Status:** 🔲 Not started
-- **Planned deliverables:**
-  - `src/generation/prompt_builder.py`
-  - `src/generation/prompts/`
-  - `tests/test_prompt_builder.py`
+- **Status:** ✅ Complete
+- **Date:** 2026-01-30
+- **What was built:**
+  - `src/generation/prompt_builder.py` - PromptBuilder class with PromptContext and AssembledPrompt dataclasses
+  - `src/generation/response_parser.py` - LLM response parsing with ParsedResponse and ParsedVariation classes
+  - `src/generation/prompts/system.txt` - System prompt template with style guidelines
+  - `src/generation/prompts/user_template.txt` - User prompt template with placeholders
+  - `src/generation/__init__.py` - Module exports
+  - `tests/test_prompt_builder.py` - Comprehensive unit tests (20+ test cases)
+- **How to verify:**
+  ```bash
+  # Run tests
+  pytest tests/test_prompt_builder.py -v
+
+  # Quick smoke test
+  python -c "
+  from src.generation.prompt_builder import PromptBuilder, PromptContext, create_prompt_context
+  from src.generation.response_parser import parse_llm_response
+  from src.models import HoldingData, ThesisLookupResult, ExemplarSelection
+  print('Prompt builder imports successfully')
+  builder = PromptBuilder()
+  print(f'PromptBuilder created: {builder}')
+  "
+  ```
+- **Known issues:** None
+- **Key decisions:**
+  - Template-based system with external txt files for easy modification
+  - Response parser handles multiple variation formats ([A], A), etc.)
+  - Duplicate detection and word count validation in parser
+  - Metadata tracking for debugging and analytics
 
 ### Phase 5: LLM Client
 - **Status:** 🔲 Not started
