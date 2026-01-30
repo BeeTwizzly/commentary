@@ -364,9 +364,9 @@ def render_review_item(item: ReviewItem, expanded: bool = False) -> None:
 
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("Regenerate", key=f"regen_{item.ticker}"):
-                    st.session_state[f"regenerate_{item.ticker}"] = True
-                    st.rerun()
+                if st.button("Regenerate", key=f"regen_{item.ticker}", disabled=True):
+                    pass
+                st.caption("Return to Upload view to regenerate")
             with col2:
                 if st.button("Skip", key=f"skip_{item.ticker}"):
                     item.reject()
