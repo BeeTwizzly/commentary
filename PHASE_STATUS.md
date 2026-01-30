@@ -4,7 +4,7 @@ This document tracks the build progress of the Portfolio Commentary Generator.
 
 ---
 
-## Current Phase: 4 - Prompt Builder
+## Current Phase: 5 - LLM Client
 
 **Status:** ✅ Complete
 
@@ -148,11 +148,36 @@ This document tracks the build progress of the Portfolio Commentary Generator.
   - Metadata tracking for debugging and analytics
 
 ### Phase 5: LLM Client
-- **Status:** 🔲 Not started
-- **Planned deliverables:**
-  - `src/generation/llm_client.py`
-  - `src/config.py`
-  - `tests/test_llm_client.py`
+- **Status:** ✅ Complete
+- **Date:** 2026-01-30
+- **What was built:**
+  - `src/config.py` - Configuration management (env vars + Streamlit secrets)
+  - `src/generation/llm_client.py` - Async OpenAI client with retry logic
+  - `tests/test_llm_client.py` - Unit tests with mocked API responses (15+ tests)
+  - Updated `.streamlit/secrets.toml.example` with OpenAI config
+  - Updated `src/generation/__init__.py` with new exports
+- **How to verify:**
+  ```bash
+  # Run tests (no API key needed - uses mocks)
+  pytest tests/test_llm_client.py -v
+
+  # Test config loading (set env var first)
+  export OPENAI_API_KEY="sk-test-key"
+  python -c "
+  from src.config import load_config_from_env
+  config = load_config_from_env()
+  print(f'Model: {config.llm.model}')
+  print(f'Temperature: {config.llm.temperature}')
+  print('Config loaded successfully!')
+  "
+  ```
+- **Known issues:** None
+- **Key decisions:**
+  - Async-first with sync wrapper for Streamlit compatibility
+  - Exponential backoff retry (2^attempt seconds)
+  - Rate limit handling via Retry-After header
+  - Token cost tracking with model-specific pricing
+  - Config from Streamlit secrets with env var fallback
 
 ### Phase 6: Core UI
 - **Status:** 🔲 Not started
