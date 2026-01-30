@@ -4,7 +4,7 @@ This document tracks the build progress of the Portfolio Commentary Generator.
 
 ---
 
-## Current Phase: 7 - Review UI
+## Current Phase: 8 - Word Export
 
 **Status:** ✅ Complete
 
@@ -249,11 +249,59 @@ This document tracks the build progress of the Portfolio Commentary Generator.
   - Export preview section with approved items
   - Review progress sidebar with contributor/detractor breakdown
 
-### Phase 8: Export
-- **Status:** 🔲 Not started
-- **Planned deliverables:**
-  - `src/export/word_export.py`
-  - Download functionality
+### Phase 8: Word Export
+- **Status:** ✅ Complete
+- **Date:** 2026-01-30
+- **What was built:**
+  - `src/export/__init__.py` - Export module initialization
+  - `src/export/word_exporter.py` - Word document generator:
+    - `WordExporter` class with configurable options
+    - `ExportConfig` dataclass for settings
+    - `ExportResult` dataclass with buffer and metadata
+    - Plain text export method
+  - `src/export/formats.py` - Additional export formats:
+    - CSV export
+    - JSON export
+    - Summary statistics
+  - `src/ui/export_panel.py` - Streamlit export UI:
+    - Download buttons for Word, Text, CSV, JSON
+    - Export options (metadata, grouping, effects)
+    - Export preview
+    - Statistics display
+  - Updated `src/ui/review.py` - Integrated export panel
+  - `tests/test_word_exporter.py` - Comprehensive test suite (18 tests)
+- **How to verify:**
+  ```bash
+  # Run export tests
+  pytest tests/test_word_exporter.py -v
+
+  # Run all tests
+  pytest tests/ -v
+
+  # Quick smoke test
+  python -c "
+  from src.export import WordExporter, ExportConfig, export_to_word
+  from src.export.formats import export_to_csv, export_to_json
+  print('Export module imports successfully')
+  config = ExportConfig()
+  print(f'Default config: font={config.font_name}, size={config.font_size}')
+  "
+
+  # Full workflow: streamlit run app.py
+  # Upload → Generate → Review → Approve → Export
+  ```
+- **Export formats:** .docx, .txt, .csv, .json
+- **Key features:**
+  - Professional Word document formatting with Calibri font
+  - Configurable metadata header with strategy, quarter, date
+  - Automatic grouping by contributor/detractor
+  - Attribution effects in bps displayed for each holding
+  - Statistics page with generation metrics
+  - Plain text export for clipboard-friendly copying
+  - CSV export for spreadsheet analysis
+  - JSON export for programmatic access
+  - Export preview before download
+  - Summary statistics panel
 
 ### Phase 9: Polish & Harden
 - **Status:** 🔲 Not started

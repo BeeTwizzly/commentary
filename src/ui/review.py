@@ -511,40 +511,10 @@ def render_item_actions(item: ReviewItem) -> None:
 
 def render_export_section(session: ReviewSession) -> None:
     """Render the export section."""
+    from src.ui.export_panel import render_export_panel
+
     st.divider()
-    st.markdown("### Export")
-
-    exportable = session.exportable_items
-
-    col1, col2 = st.columns([2, 1])
-
-    with col1:
-        if exportable:
-            st.success(f"**{len(exportable)} commentaries** ready for export")
-        else:
-            st.warning("No approved commentaries to export. Approve items above.")
-
-    with col2:
-        # Export button (Phase 8 will implement full functionality)
-        if st.button(
-            "Export to Word",
-            type="primary",
-            use_container_width=True,
-            disabled=len(exportable) == 0,
-        ):
-            st.session_state["trigger_export"] = True
-            st.rerun()
-
-    # Preview of what will be exported
-    if exportable:
-        with st.expander("Export Preview", expanded=False):
-            for item in exportable:
-                direction = "+" if item.is_contributor else "-"
-                st.markdown(f"**[{direction}] {item.ticker}** - {item.company_name}")
-                preview = item.current_text[:200] + "..." if len(item.current_text) > 200 else item.current_text
-                st.markdown(f"> {preview}")
-                st.caption(f"{item.current_word_count} words")
-                st.divider()
+    render_export_panel(session)
 
 
 def render_review_sidebar(session: ReviewSession) -> None:
