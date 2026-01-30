@@ -154,3 +154,76 @@ class ThesisLookupResult:
         if self.entry:
             return self.entry.company_name
         return self.ticker
+
+
+@dataclass(frozen=True)
+class ExemplarBlurb:
+    """
+    A single exemplar blurb extracted from historical commentary.
+
+    Attributes:
+        ticker: Stock ticker symbol
+        company_name: Company name as written in source
+        blurb_text: The commentary text
+        quarter: Source quarter (e.g., "Q3 2025")
+        year: Source year
+        blurb_type: "contributor" or "detractor"
+        word_count: Number of words in blurb
+        source_file: Original filename
+    """
+    ticker: str
+    company_name: str
+    blurb_text: str
+    quarter: str
+    year: int
+    blurb_type: str  # "contributor" or "detractor"
+    word_count: int
+    source_file: str
+
+    def matches_type(self, is_contributor: bool) -> bool:
+        """Check if blurb type matches the requested type."""
+        if is_contributor:
+            return self.blurb_type == "contributor"
+        return self.blurb_type == "detractor"
+
+
+@dataclass
+class ExemplarSelection:
+    """
+    Selected exemplars for few-shot prompting.
+
+    Attributes:
+        target_ticker: The ticker we're generating commentary for
+        target_is_contributor: Whether target is a contributor or detractor
+        same_ticker_exemplar: Prior blurb for same ticker (if exists)
+        similar_exemplars: Other blurbs of same type for variety
+    """
+    target_ticker: str
+    target_is_contributor: bool
+    same_ticker_exemplar: ExemplarBlurb | None
+    similar_exemplars: list[ExemplarBlurb] = field(default_factory=list)
+
+    def get_all_exemplars(self) -> list[ExemplarBlurb]:
+        """Return all exemplars in recommended order."""
+        exemplars = []
+        if self.same_ticker_exemplar:
+            exemplars.append(self.same_ticker_exemplar)
+        exemplars.extend(self.similar_exemplars)
+        return exemplars
+
+    def format_for_prompt(self) -> str:
+        """Format exemplars as text for prompt injection."""
+        exemplars = self.get_all_exemplars()
+        if not exemplars:
+            return "[No exemplar blurbs available]"
+
+        lines = []
+        for i, ex in enumerate(exemplars, 1):
+            context = f"({ex.quarter} {ex.blurb_type})"
+            if ex.ticker == self.target_ticker:
+                context += " [same stock, prior quarter]"
+            lines.append(f"Example {i} {context}:")
+            lines.append(f"{ex.company_name} ({ex.ticker}): {ex.blurb_text}")
+            lines.append("")
+
+        return "\n".join(lines).strip()

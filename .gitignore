@@ -45,6 +45,4 @@ env/
 Thumbs.db
 
 # Project specific
-data/exemplars/*.json
-!data/exemplars/.gitkeep
 outputs/
