@@ -682,12 +682,18 @@ def render_results_preview() -> None:
                     st.caption("No thesis context")
 
                 # Show variations or error
-                if result and result.success:
+                if result and result.success and result.variations:
                     tabs = st.tabs([f"Variation {v.label}" for v in result.variations])
                     for tab, variation in zip(tabs, result.variations):
                         with tab:
                             st.write(variation.text)
                             st.caption(f"{variation.word_count} words")
+                elif result and result.success:
+                    # Success but no parseable variations
+                    st.warning("No valid variations could be parsed from the response")
+                    if result.parsed and result.parsed.raw_response:
+                        with st.expander("Raw response"):
+                            st.text(result.parsed.raw_response[:500])
                 elif data.get("error"):
                     st.error(f"Error: {data['error']}")
                 elif result:

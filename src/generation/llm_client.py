@@ -343,6 +343,7 @@ class LLMClient:
         Synchronous wrapper for generate().
 
         Useful for Streamlit which has its own event loop management.
+        Uses a fresh HTTP client per call to avoid event loop conflicts.
 
         Args:
             prompt: Assembled prompt
@@ -351,7 +352,22 @@ class LLMClient:
         Returns:
             GenerationResult with parsed variations
         """
-        return asyncio.run(self.generate(prompt, num_variations))
+        async def _generate_with_fresh_client() -> GenerationResult:
+            # Use a fresh client for each sync call to avoid event loop issues.
+            # When asyncio.run() completes, it closes the event loop, which can
+            # leave a cached AsyncClient in an invalid state for subsequent calls.
+            old_client = self._client
+            self._client = None  # Force creation of new client
+            try:
+                return await self.generate(prompt, num_variations)
+            finally:
+                # Clean up the client we created
+                if self._client and not self._client.is_closed:
+                    await self._client.aclose()
+                # Don't restore old_client - it's tied to a dead event loop
+                self._client = None
+
+        return asyncio.run(_generate_with_fresh_client())
 
     def _calculate_cost(self, usage: TokenUsage) -> float:
         """Calculate estimated cost in USD."""

@@ -90,8 +90,18 @@ class LLMConfig:
 
     @property
     def is_configured(self) -> bool:
-        """Check if API key is set."""
-        return bool(self.api_key and self.api_key.startswith("sk-"))
+        """
+        Check if API key is set and appears valid.
+
+        Accepts various API key formats:
+        - Standard OpenAI keys (sk-...)
+        - Azure OpenAI keys (hex strings)
+        - OpenAI-compatible services (various formats)
+        """
+        if not self.api_key:
+            return False
+        # Minimum length check - most API keys are 20+ characters
+        return len(self.api_key.strip()) >= 20
 
 
 @dataclass
