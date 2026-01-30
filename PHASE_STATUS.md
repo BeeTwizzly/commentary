@@ -4,7 +4,7 @@ This document tracks the build progress of the Portfolio Commentary Generator.
 
 ---
 
-## Current Phase: 5 - LLM Client
+## Current Phase: 6 - Core UI
 
 **Status:** ✅ Complete
 
@@ -180,10 +180,39 @@ This document tracks the build progress of the Portfolio Commentary Generator.
   - Config from Streamlit secrets with env var fallback
 
 ### Phase 6: Core UI
-- **Status:** 🔲 Not started
-- **Planned deliverables:**
-  - Full `app.py` implementation
-  - Upload and generation workflow
+- **Status:** ✅ Complete
+- **Date:** 2026-01-30
+- **What was built:**
+  - `app.py` - Main Streamlit application (upload, select, generate, preview)
+  - `src/ui/__init__.py` - UI module initialization
+  - `src/ui/components.py` - Reusable UI components (holding_card, progress, etc.)
+  - `src/ui/state.py` - Session state management helpers
+  - `.streamlit/config.toml` - Updated Streamlit theme and server configuration
+- **How to verify:**
+  ```bash
+  # Start the app (requires OPENAI_API_KEY for generation)
+  export OPENAI_API_KEY="sk-your-key"
+  streamlit run app.py
+
+  # Or without API key (upload/preview only)
+  streamlit run app.py
+
+  # The app should:
+  # 1. Show file upload section
+  # 2. Accept Excel file and parse strategies
+  # 3. Allow strategy selection
+  # 4. Show generation controls (disabled without API key)
+  # 5. Display results after generation
+  ```
+- **Known issues:**
+  - Export button disabled (Phase 8)
+  - Review/edit UI is basic (Phase 7 will enhance)
+- **Key features:**
+  - Session state persistence across reruns
+  - Progress tracking during generation
+  - Cost/token tracking in sidebar
+  - Expandable results by strategy
+  - Variation tabs for each holding
 
 ### Phase 7: Review UI
 - **Status:** 🔲 Not started
