@@ -118,19 +118,19 @@ class TestLLMConfig:
         assert config.model == "gpt-4o"
 
     def test_rejects_empty_api_key(self):
-        """Should reject empty API key."""
-        with pytest.raises(ValueError, match="API key"):
-            LLMConfig(api_key="", model="gpt-4o")
+        """Should detect unconfigured state with empty API key."""
+        config = LLMConfig(api_key="", model="gpt-4o")
+        assert config.is_configured is False
 
     def test_rejects_invalid_temperature(self):
-        """Should reject temperature outside 0-2 range."""
-        with pytest.raises(ValueError, match="Temperature"):
-            LLMConfig(api_key="test", temperature=2.5)
+        """Should allow any temperature (validation moved to AppConfig)."""
+        config = LLMConfig(api_key="sk-test", temperature=2.5)
+        assert config.temperature == 2.5
 
     def test_rejects_low_max_tokens(self):
-        """Should reject max_tokens below 100."""
-        with pytest.raises(ValueError, match="max_tokens"):
-            LLMConfig(api_key="test", max_tokens=50)
+        """Should allow any max_tokens (validation moved to AppConfig)."""
+        config = LLMConfig(api_key="sk-test", max_tokens=50)
+        assert config.max_tokens == 50
 
 
 class TestTokenUsage:
@@ -333,9 +333,9 @@ class TestConfigLoading:
         assert config.llm.model == "gpt-4o-mini"
         assert config.llm.temperature == 0.5
 
-    def test_raises_without_api_key(self, monkeypatch):
-        """Should raise if API key not set."""
+    def test_reports_unconfigured_without_api_key(self, monkeypatch):
+        """Should detect unconfigured state when API key not set."""
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
-        with pytest.raises(ValueError, match="OPENAI_API_KEY"):
-            load_config_from_env()
+        config = load_config_from_env()
+        assert config.llm.is_configured is False

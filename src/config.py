@@ -1,4 +1,4 @@
-"""Application configuration management."""
+"""Application configuration with validation and defaults."""
 
 from __future__ import annotations
 
@@ -6,9 +6,58 @@ import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+def _get_env(key: str, default: str = "") -> str:
+    """Get environment variable with Streamlit secrets fallback."""
+    # Try environment first
+    value = os.environ.get(key, "")
+    if value:
+        return value
+
+    # Try Streamlit secrets
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets") and key in st.secrets:
+            return str(st.secrets[key])
+    except Exception:
+        pass
+
+    return default
+
+
+def _get_env_bool(key: str, default: bool = False) -> bool:
+    """Get boolean environment variable."""
+    value = _get_env(key, "").lower()
+    if value in ("true", "1", "yes", "on"):
+        return True
+    if value in ("false", "0", "no", "off"):
+        return False
+    return default
+
+
+def _get_env_int(key: str, default: int) -> int:
+    """Get integer environment variable."""
+    value = _get_env(key, "")
+    if value:
+        try:
+            return int(value)
+        except ValueError:
+            logger.warning("Invalid integer for %s: %s, using default %d", key, value, default)
+    return default
+
+
+def _get_env_float(key: str, default: float) -> float:
+    """Get float environment variable."""
+    value = _get_env(key, "")
+    if value:
+        try:
+            return float(value)
+        except ValueError:
+            logger.warning("Invalid float for %s: %s, using default %f", key, value, default)
+    return default
 
 
 @dataclass
@@ -23,147 +72,184 @@ class LLMConfig:
         max_tokens: Maximum tokens in response
         timeout_seconds: Request timeout
         max_retries: Maximum retry attempts
+        retry_delay_seconds: Base delay between retries
         base_url: Optional custom API base URL (for enterprise endpoints)
     """
-    api_key: str
+    api_key: str = ""
     model: str = "gpt-4o"
-    temperature: float = 0.8
-    max_tokens: int = 1500
-    timeout_seconds: float = 60.0
+    temperature: float = 0.7
+    max_tokens: int = 2000
+    timeout_seconds: float = 120.0
     max_retries: int = 3
+    retry_delay_seconds: float = 2.0
     base_url: str | None = None
 
     def __post_init__(self):
         if not self.api_key:
-            raise ValueError("API key is required")
-        if not 0.0 <= self.temperature <= 2.0:
-            raise ValueError(f"Temperature must be 0.0-2.0, got {self.temperature}")
-        if self.max_tokens < 100:
-            raise ValueError(f"max_tokens must be >= 100, got {self.max_tokens}")
+            self.api_key = _get_env("OPENAI_API_KEY", "")
+
+    @property
+    def is_configured(self) -> bool:
+        """Check if API key is set."""
+        return bool(self.api_key and self.api_key.startswith("sk-"))
+
+
+@dataclass
+class UIConfig:
+    """UI-specific configuration."""
+
+    page_title: str = "Portfolio Commentary Generator"
+    page_icon: str = "📊"
+    layout: str = "wide"
+    max_holdings_per_type: int = 5
+    show_debug_info: bool = False
+    enable_export_preview: bool = True
+
+
+@dataclass
+class GenerationConfig:
+    """Commentary generation configuration."""
+
+    variations_per_holding: int = 3
+    target_word_count: int = 50
+    word_count_tolerance: int = 15
+    max_concurrent_requests: int = 3
+    enable_caching: bool = True
+
+
+@dataclass
+class PathConfig:
+    """File path configuration."""
+
+    data_dir: Path = field(default_factory=lambda: Path("data"))
+    thesis_file: Path = field(default_factory=lambda: Path("data/thesis_registry.csv"))
+    exemplars_file: Path = field(default_factory=lambda: Path("data/exemplars/exemplars.json"))
+    logs_dir: Path = field(default_factory=lambda: Path("logs"))
+
+    def __post_init__(self):
+        # Ensure directories exist
+        self.data_dir.mkdir(parents=True, exist_ok=True)
 
 
 @dataclass
 class AppConfig:
     """
-    Complete application configuration.
+    Main application configuration.
 
-    Attributes:
-        llm: LLM-specific configuration
-        data_dir: Base directory for data files
-        thesis_registry_path: Path to thesis CSV
-        exemplars_path: Path to exemplars JSON
-        log_level: Logging level
-        num_variations: Number of commentary variations to generate
+    Combines LLM, UI, generation, and path configurations.
     """
-    llm: LLMConfig
-    data_dir: Path = field(default_factory=lambda: Path("data"))
-    thesis_registry_path: Path | None = None
-    exemplars_path: Path | None = None
+
+    llm: LLMConfig = field(default_factory=LLMConfig)
+    ui: UIConfig = field(default_factory=UIConfig)
+    generation: GenerationConfig = field(default_factory=GenerationConfig)
+    paths: PathConfig = field(default_factory=PathConfig)
+
+    # Environment
+    debug: bool = False
     log_level: str = "INFO"
+
+    # Legacy compatibility
     num_variations: int = 3
 
     def __post_init__(self):
-        # Set default paths if not specified
-        if self.thesis_registry_path is None:
-            self.thesis_registry_path = self.data_dir / "thesis_registry.csv"
-        if self.exemplars_path is None:
-            self.exemplars_path = self.data_dir / "exemplars" / "exemplars.json"
+        self.debug = _get_env_bool("DEBUG", False)
+        self.log_level = _get_env("LOG_LEVEL", "INFO").upper()
 
+        if self.debug:
+            self.ui.show_debug_info = True
+            self.log_level = "DEBUG"
 
-def load_config_from_env() -> AppConfig:
-    """
-    Load configuration from environment variables.
+        # Sync num_variations
+        self.num_variations = self.generation.variations_per_holding
 
-    Environment variables:
-        OPENAI_API_KEY: Required API key
-        OPENAI_MODEL: Model name (default: gpt-4o)
-        OPENAI_BASE_URL: Optional custom base URL
-        OPENAI_TEMPERATURE: Sampling temperature (default: 0.8)
-        OPENAI_MAX_TOKENS: Max response tokens (default: 1500)
-        LOG_LEVEL: Logging level (default: INFO)
+    # Legacy property aliases for backward compatibility
+    @property
+    def data_dir(self) -> Path:
+        return self.paths.data_dir
 
-    Returns:
-        AppConfig with values from environment
+    @property
+    def thesis_registry_path(self) -> Path:
+        return self.paths.thesis_file
 
-    Raises:
-        ValueError: If required environment variables are missing
-    """
-    api_key = os.environ.get("OPENAI_API_KEY", "")
+    @property
+    def exemplars_path(self) -> Path:
+        return self.paths.exemplars_file
 
-    if not api_key:
-        raise ValueError(
-            "OPENAI_API_KEY environment variable is required. "
-            "Set it in your environment or .streamlit/secrets.toml"
+    @classmethod
+    def from_env(cls) -> "AppConfig":
+        """Create configuration from environment variables."""
+        return cls(
+            llm=LLMConfig(
+                api_key=_get_env("OPENAI_API_KEY", ""),
+                model=_get_env("OPENAI_MODEL", _get_env("LLM_MODEL", "gpt-4o")),
+                temperature=_get_env_float("OPENAI_TEMPERATURE", _get_env_float("LLM_TEMPERATURE", 0.7)),
+                max_tokens=_get_env_int("OPENAI_MAX_TOKENS", _get_env_int("LLM_MAX_TOKENS", 2000)),
+                timeout_seconds=_get_env_float("LLM_TIMEOUT", 120.0),
+                max_retries=_get_env_int("LLM_MAX_RETRIES", 3),
+                base_url=_get_env("OPENAI_BASE_URL", "") or None,
+            ),
+            ui=UIConfig(
+                max_holdings_per_type=_get_env_int("MAX_HOLDINGS", 5),
+                show_debug_info=_get_env_bool("SHOW_DEBUG", False),
+            ),
+            generation=GenerationConfig(
+                variations_per_holding=_get_env_int("VARIATIONS_COUNT", 3),
+                target_word_count=_get_env_int("TARGET_WORDS", 50),
+                max_concurrent_requests=_get_env_int("MAX_CONCURRENT", 3),
+            ),
         )
 
-    llm_config = LLMConfig(
-        api_key=api_key,
-        model=os.environ.get("OPENAI_MODEL", "gpt-4o"),
-        base_url=os.environ.get("OPENAI_BASE_URL"),
-        temperature=float(os.environ.get("OPENAI_TEMPERATURE", "0.8")),
-        max_tokens=int(os.environ.get("OPENAI_MAX_TOKENS", "1500")),
-    )
+    def validate(self) -> list[str]:
+        """
+        Validate configuration and return any errors.
 
-    return AppConfig(
-        llm=llm_config,
-        log_level=os.environ.get("LOG_LEVEL", "INFO"),
-    )
+        Returns:
+            List of validation error messages (empty if valid)
+        """
+        errors = []
+
+        if not self.llm.is_configured:
+            errors.append("OpenAI API key not configured")
+
+        if self.llm.temperature < 0 or self.llm.temperature > 2:
+            errors.append(f"Invalid temperature: {self.llm.temperature} (must be 0-2)")
+
+        if self.llm.max_tokens < 100:
+            errors.append(f"Max tokens too low: {self.llm.max_tokens}")
+
+        if self.generation.variations_per_holding < 1:
+            errors.append("Must generate at least 1 variation")
+
+        if self.generation.variations_per_holding > 5:
+            errors.append("Maximum 5 variations per holding")
+
+        return errors
 
 
-def load_config_from_streamlit() -> AppConfig:
-    """
-    Load configuration from Streamlit secrets.
-
-    Expects secrets in .streamlit/secrets.toml:
-        [openai]
-        api_key = "sk-..."
-        model = "gpt-4o"  # optional
-        base_url = "..."  # optional
-
-    Returns:
-        AppConfig with values from Streamlit secrets
-
-    Raises:
-        ValueError: If required secrets are missing
-    """
-    try:
-        import streamlit as st
-
-        # Try to get from streamlit secrets
-        if hasattr(st, "secrets") and "openai" in st.secrets:
-            openai_secrets = st.secrets["openai"]
-            api_key = openai_secrets.get("api_key", "")
-
-            if not api_key:
-                raise ValueError("openai.api_key not found in Streamlit secrets")
-
-            llm_config = LLMConfig(
-                api_key=api_key,
-                model=openai_secrets.get("model", "gpt-4o"),
-                base_url=openai_secrets.get("base_url"),
-                temperature=float(openai_secrets.get("temperature", 0.8)),
-                max_tokens=int(openai_secrets.get("max_tokens", 1500)),
-            )
-
-            return AppConfig(llm=llm_config)
-
-    except ImportError:
-        pass
-    except Exception as e:
-        logger.warning("Failed to load Streamlit secrets: %s", e)
-
-    # Fall back to environment
-    return load_config_from_env()
+# Global config instance (lazy loaded)
+_config: AppConfig | None = None
 
 
 def get_config() -> AppConfig:
-    """
-    Get application configuration, trying Streamlit secrets first.
+    """Get the application configuration (singleton)."""
+    global _config
+    if _config is None:
+        _config = AppConfig.from_env()
+    return _config
 
-    Returns:
-        AppConfig from best available source
-    """
-    try:
-        return load_config_from_streamlit()
-    except ValueError:
-        return load_config_from_env()
+
+def reset_config() -> None:
+    """Reset configuration (for testing)."""
+    global _config
+    _config = None
+
+
+# Legacy function aliases for backward compatibility
+def load_config_from_env() -> AppConfig:
+    """Load configuration from environment variables."""
+    return AppConfig.from_env()
+
+
+def load_config_from_streamlit() -> AppConfig:
+    """Load configuration from Streamlit secrets."""
+    return AppConfig.from_env()
