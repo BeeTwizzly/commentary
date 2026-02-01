@@ -629,8 +629,8 @@ def regenerate_single_item(strategy_name: str, ticker: str) -> bool:
 
     except Exception as e:
         st.error(f"Error regenerating {ticker}: {e}")
-            logger.exception("Regeneration error for %s", ticker)
-            return False
+        logger.exception("Regeneration error for %s", ticker)
+        return False
 
 
 def render_results_preview() -> None:
