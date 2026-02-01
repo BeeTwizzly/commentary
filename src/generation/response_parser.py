@@ -190,11 +190,49 @@ def _clean_text(text: str) -> str:
     # Remove leading/trailing whitespace
     text = text.strip()
 
-    # Remove any remaining label artifacts at the start
-    text = re.sub(r'^[\[\(]?[A-Za-z0-9][\]\):]?\s*', '', text)
+    # Remove label artifacts at start - must have bracket/paren OR be followed by delimiter
+    # This prevents stripping single letters from normal words
+    # Matches: [A], (B), A), A:, A., 1), 1:, etc.
+    text = re.sub(r'^[\[\(][A-Za-z0-9][\]\)]\s*', '', text)  # [A] or (B)
+    text = re.sub(r'^[A-Za-z0-9][\)\]:\.]\s+', '', text)      # A) or B: followed by space
+
+    # Remove descriptive variation prefixes that LLMs sometimes add
+    # Patterns like: "First variation — Thesis confirmation PM (Philip Morris):"
+    #                "Variation 1 — Conservative:"
+    #                "irst variation —" (truncated)
+    # Apply iteratively to handle nested prefixes
+    prefix_patterns = [
+        # "First/Second/Third variation" patterns (including truncated "irst")
+        r'^(?:F?irst|Second|Third|Fourth|Fifth)\s+variation\s*[—\-–:]+\s*',
+        # "Variation N" patterns (including truncated "ariation")
+        r'^[Vv]?ariation\s+(?:\d+|[A-Za-z])?\s*[—\-–:]+\s*',
+        # Thesis/approach labels followed by anything then colon/dash
+        # e.g., "Thesis confirmation PM (Philip Morris):"
+        r'^(?:Thesis\s+confirmation|Thesis)[^:—\-–]*[—\-–:]+\s*',
+        # Ticker with parenthetical and colon: "PM (Philip Morris):"
+        r'^[A-Z]{1,5}\s*\([^)]+\)\s*:\s*',
+        # Short label followed by colon (e.g., "Conservative:")
+        r'^(?:Conservative|Aggressive|Balanced|Standard|Neutral)\s*:\s*',
+    ]
+
+    # Apply patterns iteratively until no more matches (handles nested prefixes)
+    max_iterations = 5  # Safety limit
+    for _ in range(max_iterations):
+        changed = False
+        for pattern in prefix_patterns:
+            new_text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+            if new_text != text:
+                text = new_text.strip()
+                changed = True
+                break  # Restart pattern loop after a match
+        if not changed:
+            break
 
     # Collapse multiple whitespace
     text = re.sub(r'\s+', ' ', text)
+
+    # Strip again after pattern removal
+    text = text.strip()
 
     # Remove trailing incomplete sentences if present
     if text and text[-1] not in '.!?"\'':

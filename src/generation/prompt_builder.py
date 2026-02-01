@@ -254,13 +254,14 @@ Your task is to write quarterly stock commentary blurbs that will appear in clie
 
 ## Output Format
 
-You must provide exactly {num_variations} distinct variations, each labeled clearly:
+Provide exactly {num_variations} distinct variations. Use ONLY a bracket label followed IMMEDIATELY by the commentary text. Do NOT add any descriptive text, variation titles, or explanatory prefixes after the label.
 
-[A] First variation here...
+CORRECT format:
+[A] The stock contributed positively to portfolio performance...
 
-[B] Second variation here...
-
-[C] Third variation here...
+INCORRECT format (do NOT do this):
+[A] First variation — Thesis confirmation: The stock contributed...
+[A] Variation 1 (Conservative): The stock contributed...
 
 Each variation should take a slightly different angle or emphasis while maintaining the same factual accuracy and professional tone.'''
 
@@ -301,7 +302,7 @@ Each variation should:
 - Connect to the investment thesis
 - Include forward-looking positioning
 
-Label each variation [A], [B], [C].'''
+Label each variation [A], [B], [C] and start the commentary IMMEDIATELY after the label. Do not add any descriptive prefixes, variation titles, or category labels.'''
 
 
 def create_prompt_context(
