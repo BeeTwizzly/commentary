@@ -336,26 +336,34 @@ def render_review_list(session: ReviewSession) -> None:
 
 def render_review_item(item: ReviewItem, expanded: bool = False) -> None:
     """Render a single review item."""
-    # Determine status icon
+    # Determine status icon - using emoji for better visibility
     status_icons = {
-        ApprovalStatus.PENDING: "[ ]",
-        ApprovalStatus.APPROVED: "[+]",
-        ApprovalStatus.REJECTED: "[x]",
-        ApprovalStatus.NEEDS_EDIT: "[~]",
+        ApprovalStatus.PENDING: "⬜",
+        ApprovalStatus.APPROVED: "✅",
+        ApprovalStatus.REJECTED: "❌",
+        ApprovalStatus.NEEDS_EDIT: "✏️",
     }
-    status_icon = status_icons.get(item.status, "[?]")
+    status_icon = status_icons.get(item.status, "❓")
 
     # Direction indicator
-    direction = "+" if item.is_contributor else "-"
+    direction = "▲" if item.is_contributor else "▼"
 
     # Effect display
     effect = item.holding.total_attribution
     effect_str = f"{effect:+.1f} bps" if effect else ""
 
     # Build header
-    header = f"{status_icon} [{direction}] **{item.ticker}** - {item.company_name}"
+    header = f"{status_icon} {direction} **{item.ticker}** - {item.company_name}"
     if effect_str:
         header += f" ({effect_str})"
+
+    # Apply light green background for approved items
+    if item.status == ApprovalStatus.APPROVED:
+        st.markdown(
+            """<div style="background-color: #d4edda; border-left: 4px solid #28a745;
+            padding: 2px 8px; margin-bottom: 4px; border-radius: 4px;">""",
+            unsafe_allow_html=True,
+        )
 
     with st.expander(header, expanded=expanded):
         if not item.has_valid_result:
@@ -374,6 +382,9 @@ def render_review_item(item: ReviewItem, expanded: bool = False) -> None:
                 if st.button("Skip", key=f"skip_{item.ticker}"):
                     item.reject()
                     st.rerun()
+            # Close the styled div for approved items before early return
+            if item.status == ApprovalStatus.APPROVED:
+                st.markdown("</div>", unsafe_allow_html=True)
             return
 
         # Thesis indicator
@@ -389,6 +400,10 @@ def render_review_item(item: ReviewItem, expanded: bool = False) -> None:
 
         # Action buttons
         render_item_actions(item)
+
+    # Close the styled div for approved items
+    if item.status == ApprovalStatus.APPROVED:
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_variation_tabs(item: ReviewItem) -> None:
