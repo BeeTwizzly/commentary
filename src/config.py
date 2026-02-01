@@ -30,13 +30,19 @@ def _get_env(key: str, default: str = "") -> str:
             if key_lower in st.secrets:
                 return str(st.secrets[key_lower])
 
-            # Try nested access for common patterns
-            # e.g., [openai] api_key = "..." -> st.secrets.openai.api_key
-            if key == "OPENAI_API_KEY":
-                # Check for [openai] section
-                if "openai" in st.secrets:
-                    openai_secrets = st.secrets["openai"]
-                    for nested_key in ["api_key", "key", "API_KEY", "OPENAI_API_KEY"]:
+            # Try nested access for common patterns under [openai] section
+            if "openai" in st.secrets:
+                openai_secrets = st.secrets["openai"]
+
+                # Map of env var names to possible nested key names
+                nested_key_map = {
+                    "OPENAI_API_KEY": ["api_key", "key", "API_KEY", "OPENAI_API_KEY"],
+                    "OPENAI_MODEL": ["model", "MODEL", "OPENAI_MODEL"],
+                    "LLM_MODEL": ["model", "MODEL", "LLM_MODEL"],
+                }
+
+                if key in nested_key_map:
+                    for nested_key in nested_key_map[key]:
                         if hasattr(openai_secrets, nested_key):
                             return str(getattr(openai_secrets, nested_key))
                         if isinstance(openai_secrets, dict) and nested_key in openai_secrets:
