@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 # Pricing per 1M tokens (approximate, update as needed)
 # https://openai.com/pricing
 TOKEN_COSTS = {
+    "gpt-5-mini": {"input": 0.30, "output": 1.20},
     "gpt-4o": {"input": 2.50, "output": 10.00},
     "gpt-4o-mini": {"input": 0.15, "output": 0.60},
     "gpt-4-turbo": {"input": 10.00, "output": 30.00},
@@ -125,9 +126,8 @@ class LLMClient:
         self._base_url = config.base_url or "https://api.openai.com/v1"
 
         logger.info(
-            "LLMClient initialized: model=%s, temperature=%.1f, max_tokens=%d",
+            "LLMClient initialized: model=%s, max_tokens=%d",
             config.model,
-            config.temperature,
             config.max_tokens,
         )
 
@@ -166,13 +166,13 @@ class LLMClient:
             httpx.HTTPStatusError: On API errors
         """
         # Build Responses API payload
+        # Note: temperature is not supported for GPT-5 and later models
         payload = {
             "model": self.config.model,
             "input": [
                 {"role": "system", "content": prompt.system_prompt},
                 {"role": "user", "content": prompt.user_prompt},
             ],
-            "temperature": self.config.temperature,
             "max_output_tokens": self.config.max_tokens,
         }
 

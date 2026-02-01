@@ -92,8 +92,7 @@ class LLMConfig:
 
     Attributes:
         api_key: OpenAI API key
-        model: Model identifier (e.g., "gpt-4o", "gpt-4o-mini")
-        temperature: Sampling temperature (0.0-2.0)
+        model: Model identifier (e.g., "gpt-5-mini")
         max_tokens: Maximum tokens in response
         timeout_seconds: Request timeout
         max_retries: Maximum retry attempts
@@ -102,8 +101,7 @@ class LLMConfig:
         base_url: Optional custom API base URL (for enterprise endpoints)
     """
     api_key: str = ""
-    model: str = "gpt-4o"
-    temperature: float = 0.7
+    model: str = "gpt-5-mini"
     max_tokens: int = 2000
     timeout_seconds: float = 120.0
     max_retries: int = 3
@@ -218,8 +216,7 @@ class AppConfig:
         return cls(
             llm=LLMConfig(
                 api_key=_get_env("OPENAI_API_KEY", ""),
-                model=_get_env("OPENAI_MODEL", _get_env("LLM_MODEL", "gpt-4o")),
-                temperature=_get_env_float("OPENAI_TEMPERATURE", _get_env_float("LLM_TEMPERATURE", 0.7)),
+                model=_get_env("OPENAI_MODEL", _get_env("LLM_MODEL", "gpt-5-mini")),
                 max_tokens=_get_env_int("OPENAI_MAX_TOKENS", _get_env_int("LLM_MAX_TOKENS", 2000)),
                 timeout_seconds=_get_env_float("LLM_TIMEOUT", 120.0),
                 max_retries=_get_env_int("LLM_MAX_RETRIES", 3),
@@ -247,9 +244,6 @@ class AppConfig:
 
         if not self.llm.is_configured:
             errors.append("OpenAI API key not configured")
-
-        if self.llm.temperature < 0 or self.llm.temperature > 2:
-            errors.append(f"Invalid temperature: {self.llm.temperature} (must be 0-2)")
 
         if self.llm.max_tokens < 100:
             errors.append(f"Max tokens too low: {self.llm.max_tokens}")
