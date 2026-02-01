@@ -32,6 +32,7 @@ from src.ui.review import (
     init_review_session,
     render_review_page,
 )
+from src.ui.export_panel import increment_export_key
 
 # Configure logging
 logging.basicConfig(
@@ -512,6 +513,7 @@ def run_generation(holdings: list[tuple[str, HoldingData]]) -> None:
     )
 
     # Trigger rerun to show results
+    increment_export_key()  # Refresh download button keys
     st.rerun()
 
 
@@ -805,6 +807,7 @@ def main() -> None:
                 success = regenerate_single_item(strategy, ticker)
             if success:
                 st.toast(f"Regenerated commentary for {ticker}")
+            increment_export_key()  # Refresh download button keys to prevent stale file refs
             st.rerun()
 
     # Title
