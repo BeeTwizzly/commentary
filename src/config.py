@@ -98,6 +98,7 @@ class LLMConfig:
         timeout_seconds: Request timeout
         max_retries: Maximum retry attempts
         retry_delay_seconds: Base delay between retries
+        poll_interval_seconds: Interval for polling async responses
         base_url: Optional custom API base URL (for enterprise endpoints)
     """
     api_key: str = ""
@@ -107,6 +108,7 @@ class LLMConfig:
     timeout_seconds: float = 120.0
     max_retries: int = 3
     retry_delay_seconds: float = 2.0
+    poll_interval_seconds: float = 1.5
     base_url: str | None = None
 
     def __post_init__(self):

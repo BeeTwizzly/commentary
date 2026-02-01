@@ -1,4 +1,4 @@
-"""LLM client for generating commentary via OpenAI API."""
+"""LLM client for generating commentary via OpenAI Responses API."""
 
 from __future__ import annotations
 
@@ -28,6 +28,13 @@ TOKEN_COSTS = {
 
 # Default fallback pricing
 DEFAULT_COST = {"input": 5.00, "output": 15.00}
+
+# Response status values
+STATUS_COMPLETED = "completed"
+STATUS_FAILED = "failed"
+STATUS_CANCELLED = "cancelled"
+STATUS_IN_PROGRESS = "in_progress"
+TERMINAL_STATUSES = {STATUS_COMPLETED, STATUS_FAILED, STATUS_CANCELLED}
 
 
 @dataclass
@@ -90,7 +97,7 @@ class BatchProgress:
 
 class LLMClient:
     """
-    Client for generating commentary via OpenAI-compatible API.
+    Client for generating commentary via OpenAI Responses API.
 
     Handles API calls with retry logic, rate limiting awareness,
     and cost tracking. Supports both sync and async operation.
@@ -142,6 +149,129 @@ class LLMClient:
             await self._client.aclose()
             self._client = None
 
+    async def create_response(
+        self,
+        prompt: AssembledPrompt,
+    ) -> dict:
+        """
+        Submit a request to the Responses API.
+
+        Args:
+            prompt: Assembled prompt with system and user messages
+
+        Returns:
+            Response data dict from API
+
+        Raises:
+            httpx.HTTPStatusError: On API errors
+        """
+        # Build Responses API payload
+        payload = {
+            "model": self.config.model,
+            "input": [
+                {"role": "system", "content": prompt.system_prompt},
+                {"role": "user", "content": prompt.user_prompt},
+            ],
+            "temperature": self.config.temperature,
+            "max_output_tokens": self.config.max_tokens,
+        }
+
+        client = await self._get_client()
+        response = await client.post(
+            f"{self._base_url}/responses",
+            json=payload,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def poll_response(self, response_id: str) -> dict:
+        """
+        Poll for response completion.
+
+        Args:
+            response_id: ID of the response to poll
+
+        Returns:
+            Completed response data dict
+        """
+        client = await self._get_client()
+
+        while True:
+            response = await client.get(
+                f"{self._base_url}/responses/{response_id}",
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            status = data.get("status", STATUS_COMPLETED)
+            if status in TERMINAL_STATUSES:
+                return data
+
+            logger.debug(
+                "Response %s status: %s, polling again in %.1fs",
+                response_id,
+                status,
+                self.config.poll_interval_seconds,
+            )
+            await asyncio.sleep(self.config.poll_interval_seconds)
+
+    def _extract_output_text(self, response_data: dict) -> str:
+        """
+        Extract text content from Responses API output.
+
+        The Responses API returns output in the format:
+        response_data["output"][*]["content"][*]["text"]
+
+        Args:
+            response_data: Response data from API
+
+        Returns:
+            Concatenated text from all output items
+        """
+        outputs = response_data.get("output", [])
+        chunks = []
+
+        for item in outputs:
+            # Handle message-type outputs
+            content_list = item.get("content", [])
+            for content in content_list:
+                if content.get("type") == "text":
+                    text = content.get("text", "")
+                    if text:
+                        chunks.append(text)
+                elif isinstance(content, str):
+                    # Some responses may have plain string content
+                    chunks.append(content)
+
+            # Also check for direct text field (older format compatibility)
+            if "text" in item:
+                chunks.append(item["text"])
+
+        return "\n".join(chunks).strip()
+
+    def _parse_usage(self, response_data: dict) -> TokenUsage:
+        """
+        Parse token usage from Responses API response.
+
+        Args:
+            response_data: Response data from API
+
+        Returns:
+            TokenUsage with parsed values
+        """
+        usage_data = response_data.get("usage", {})
+
+        # Responses API uses input_tokens/output_tokens
+        input_tokens = usage_data.get("input_tokens", usage_data.get("prompt_tokens", 0))
+        output_tokens = usage_data.get("output_tokens", usage_data.get("completion_tokens", 0))
+        total_tokens = usage_data.get("total_tokens", input_tokens + output_tokens)
+
+        return TokenUsage(
+            prompt_tokens=input_tokens,
+            completion_tokens=output_tokens,
+            total_tokens=total_tokens,
+        )
+
     async def generate(
         self,
         prompt: AssembledPrompt,
@@ -149,6 +279,8 @@ class LLMClient:
     ) -> GenerationResult:
         """
         Generate commentary variations for a single holding.
+
+        Uses the OpenAI Responses API with polling for completion.
 
         Args:
             prompt: Assembled prompt with system and user messages
@@ -159,59 +291,48 @@ class LLMClient:
         """
         start_time = time.monotonic()
 
-        messages = [
-            {"role": "system", "content": prompt.system_prompt},
-            {"role": "user", "content": prompt.user_prompt},
-        ]
-
-        payload = {
-            "model": self.config.model,
-            "messages": messages,
-            "temperature": self.config.temperature,
-            "max_tokens": self.config.max_tokens,
-        }
-
         # Retry loop with exponential backoff
         last_error = ""
         for attempt in range(self.config.max_retries):
             try:
-                client = await self._get_client()
+                # Create the response
+                response_data = await self.create_response(prompt)
 
-                response = await client.post(
-                    f"{self._base_url}/chat/completions",
-                    json=payload,
-                )
+                # Check if we need to poll (status might be in_progress)
+                status = response_data.get("status", STATUS_COMPLETED)
+                if status == STATUS_IN_PROGRESS:
+                    response_id = response_data.get("id")
+                    if response_id:
+                        response_data = await self.poll_response(response_id)
+                        status = response_data.get("status", STATUS_COMPLETED)
 
-                # Handle rate limiting
-                if response.status_code == 429:
-                    retry_after = int(response.headers.get("Retry-After", 5))
-                    logger.warning(
-                        "Rate limited, waiting %d seconds (attempt %d/%d)",
-                        retry_after,
-                        attempt + 1,
-                        self.config.max_retries,
-                    )
-                    await asyncio.sleep(retry_after)
+                # Handle non-success statuses
+                if status == STATUS_FAILED:
+                    error = response_data.get("error", {})
+                    last_error = error.get("message", "Response failed")
+                    logger.warning("Response failed: %s", last_error)
                     continue
 
-                response.raise_for_status()
-                data = response.json()
+                if status == STATUS_CANCELLED:
+                    last_error = "Response was cancelled"
+                    logger.warning(last_error)
+                    continue
 
-                # Extract response content
-                content = data["choices"][0]["message"]["content"]
+                # Extract content from output
+                content = self._extract_output_text(response_data)
+
+                if not content:
+                    last_error = "Empty response content"
+                    logger.warning("Empty response from API")
+                    continue
 
                 # Parse usage
-                usage_data = data.get("usage", {})
-                usage = TokenUsage(
-                    prompt_tokens=usage_data.get("prompt_tokens", 0),
-                    completion_tokens=usage_data.get("completion_tokens", 0),
-                    total_tokens=usage_data.get("total_tokens", 0),
-                )
+                usage = self._parse_usage(response_data)
 
                 # Calculate cost
                 cost = self._calculate_cost(usage)
 
-                # Parse variations
+                # Parse variations from content
                 parsed = parse_llm_response(content, expected_count=num_variations)
 
                 latency = time.monotonic() - start_time
@@ -242,6 +363,13 @@ class LLMClient:
                     self.config.max_retries,
                     last_error,
                 )
+
+                # Handle rate limiting
+                if e.response.status_code == 429:
+                    retry_after = int(e.response.headers.get("Retry-After", 5))
+                    logger.warning("Rate limited, waiting %d seconds", retry_after)
+                    await asyncio.sleep(retry_after)
+                    continue
 
             except httpx.RequestError as e:
                 last_error = f"Request failed: {e}"
