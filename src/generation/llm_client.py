@@ -221,6 +221,7 @@ class LLMClient:
 
         The Responses API returns output in the format:
         response_data["output"][*]["content"][*]["text"]
+        where content type is "output_text"
 
         Args:
             response_data: Response data from API
@@ -231,11 +232,20 @@ class LLMClient:
         outputs = response_data.get("output", [])
         chunks = []
 
+        logger.debug("Extracting output from response: %d output items", len(outputs))
+
         for item in outputs:
+            item_type = item.get("type", "unknown")
+            logger.debug("Processing output item type: %s", item_type)
+
             # Handle message-type outputs
             content_list = item.get("content", [])
             for content in content_list:
-                if content.get("type") == "text":
+                content_type = content.get("type") if isinstance(content, dict) else None
+                logger.debug("Content type: %s", content_type)
+
+                # Responses API uses "output_text" type
+                if content_type in ("text", "output_text"):
                     text = content.get("text", "")
                     if text:
                         chunks.append(text)
@@ -247,7 +257,9 @@ class LLMClient:
             if "text" in item:
                 chunks.append(item["text"])
 
-        return "\n".join(chunks).strip()
+        result = "\n".join(chunks).strip()
+        logger.debug("Extracted %d characters of text", len(result))
+        return result
 
     def _parse_usage(self, response_data: dict) -> TokenUsage:
         """

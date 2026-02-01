@@ -88,7 +88,7 @@ def mock_api_response():
             "type": "message",
             "role": "assistant",
             "content": [{
-                "type": "text",
+                "type": "output_text",
                 "text": """[A] NVIDIA contributed strongly as datacenter revenue exceeded expectations. The AI infrastructure thesis remains intact with demand visibility extending into next year. We maintain our overweight position.
 
 [B] Our NVIDIA position drove relative performance this quarter. Datacenter growth of 150% year-over-year validated our AI demand thesis. The position remains a high-conviction holding.
