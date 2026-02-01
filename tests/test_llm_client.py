@@ -24,8 +24,7 @@ def llm_config() -> LLMConfig:
     """Create test LLM configuration."""
     return LLMConfig(
         api_key="test-api-key",
-        model="gpt-4o",
-        temperature=0.8,
+        model="gpt-5-mini",
         max_tokens=1500,
         max_retries=2,
     )
@@ -84,7 +83,7 @@ def mock_api_response():
         "id": "resp-test-12345",
         "object": "response",
         "status": "completed",
-        "model": "gpt-4o",
+        "model": "gpt-5-mini",
         "output": [{
             "type": "message",
             "role": "assistant",
@@ -112,21 +111,15 @@ class TestLLMConfig:
         """Should accept valid configuration."""
         config = LLMConfig(
             api_key="test-key",
-            model="gpt-4o",
-            temperature=0.7,
+            model="gpt-5-mini",
         )
         assert config.api_key == "test-key"
-        assert config.model == "gpt-4o"
+        assert config.model == "gpt-5-mini"
 
     def test_rejects_empty_api_key(self):
         """Should detect unconfigured state with empty API key."""
-        config = LLMConfig(api_key="", model="gpt-4o")
+        config = LLMConfig(api_key="", model="gpt-5-mini")
         assert config.is_configured is False
-
-    def test_rejects_invalid_temperature(self):
-        """Should allow any temperature (validation moved to AppConfig)."""
-        config = LLMConfig(api_key="sk-test", temperature=2.5)
-        assert config.temperature == 2.5
 
     def test_rejects_low_max_tokens(self):
         """Should allow any max_tokens (validation moved to AppConfig)."""
@@ -255,9 +248,9 @@ class TestLLMClient:
 
         cost = client._calculate_cost(usage)
 
-        # gpt-4o: $2.50/1M input, $10.00/1M output
-        expected_input = (1000 / 1_000_000) * 2.50
-        expected_output = (500 / 1_000_000) * 10.00
+        # gpt-5-mini: $0.30/1M input, $1.20/1M output
+        expected_input = (1000 / 1_000_000) * 0.30
+        expected_output = (500 / 1_000_000) * 1.20
         expected_total = expected_input + expected_output
 
         assert abs(cost - expected_total) < 0.0001
@@ -304,7 +297,7 @@ class TestGenerationResult:
             usage=TokenUsage(),
             cost_usd=0.01,
             latency_seconds=1.0,
-            model="gpt-4o",
+            model="gpt-5-mini",
             success=True,
         )
 
@@ -317,7 +310,7 @@ class TestGenerationResult:
             usage=TokenUsage(),
             cost_usd=0.0,
             latency_seconds=1.0,
-            model="gpt-4o",
+            model="gpt-5-mini",
             success=False,
             error_message="Test error",
         )
@@ -331,14 +324,12 @@ class TestConfigLoading:
     def test_load_from_env(self, monkeypatch):
         """Should load config from environment variables."""
         monkeypatch.setenv("OPENAI_API_KEY", "test-key-from-env")
-        monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-mini")
-        monkeypatch.setenv("OPENAI_TEMPERATURE", "0.5")
+        monkeypatch.setenv("OPENAI_MODEL", "gpt-5-mini")
 
         config = load_config_from_env()
 
         assert config.llm.api_key == "test-key-from-env"
-        assert config.llm.model == "gpt-4o-mini"
-        assert config.llm.temperature == 0.5
+        assert config.llm.model == "gpt-5-mini"
 
     def test_reports_unconfigured_without_api_key(self, monkeypatch):
         """Should detect unconfigured state when API key not set."""
