@@ -558,80 +558,77 @@ def regenerate_single_item(strategy_name: str, ticker: str) -> bool:
         st.error(f"Configuration error: {e}")
         return False
 
-    # Show progress
-    with st.spinner(f"Regenerating commentary for {ticker}..."):
-        try:
-            # Look up thesis
-            thesis_result = registry.lookup(holding.ticker) if registry else None
-            if thesis_result is None:
-                from src.models import ThesisLookupResult
-                thesis_result = ThesisLookupResult(
-                    ticker=holding.ticker,
-                    found=False,
-                    entry=None,
-                    placeholder_text=f"[No thesis on file for {holding.ticker}]",
-                )
-
-            # Get exemplars
-            exemplar_selection = exemplars.select(
+    try:
+        # Look up thesis
+        thesis_result = registry.lookup(holding.ticker) if registry else None
+        if thesis_result is None:
+            from src.models import ThesisLookupResult
+            thesis_result = ThesisLookupResult(
                 ticker=holding.ticker,
-                is_contributor=holding.is_contributor,
-            ) if exemplars else None
-
-            if exemplar_selection is None:
-                from src.models import ExemplarSelection
-                exemplar_selection = ExemplarSelection(
-                    target_ticker=holding.ticker,
-                    target_is_contributor=holding.is_contributor,
-                    same_ticker_exemplar=None,
-                    similar_exemplars=[],
-                )
-
-            # Build prompt
-            context = create_prompt_context(
-                holding=holding,
-                thesis=thesis_result,
-                exemplars=exemplar_selection,
-                quarter=quarter_str,
-                strategy_name=strategy_name,
-                num_variations=num_variations,
+                found=False,
+                entry=None,
+                placeholder_text=f"[No thesis on file for {holding.ticker}]",
             )
-            prompt = prompt_builder.build(context)
 
-            # Generate (sync call)
-            result = client.generate_sync(prompt, num_variations)
+        # Get exemplars
+        exemplar_selection = exemplars.select(
+            ticker=holding.ticker,
+            is_contributor=holding.is_contributor,
+        ) if exemplars else None
 
-            # Update the review item with new result
-            item.result = result
-            item.thesis_found = thesis_result.found
-            item.selected_variation = 0
-            item.edited_text = ""
-            item.status = ApprovalStatus.PENDING
+        if exemplar_selection is None:
+            from src.models import ExemplarSelection
+            exemplar_selection = ExemplarSelection(
+                target_ticker=holding.ticker,
+                target_is_contributor=holding.is_contributor,
+                same_ticker_exemplar=None,
+                similar_exemplars=[],
+            )
 
-            # Track costs
-            st.session_state.total_cost_usd += result.cost_usd
-            st.session_state.total_tokens += result.usage.total_tokens
+        # Build prompt
+        context = create_prompt_context(
+            holding=holding,
+            thesis=thesis_result,
+            exemplars=exemplar_selection,
+            quarter=quarter_str,
+            strategy_name=strategy_name,
+            num_variations=num_variations,
+        )
+        prompt = prompt_builder.build(context)
 
-            # Also update generation_results for consistency
-            key = f"{strategy_name}|{ticker}"
-            st.session_state.generation_results[key] = {
-                "holding": holding,
-                "strategy": strategy_name,
-                "result": result,
-                "thesis_found": thesis_result.found,
-            }
+        # Generate (sync call)
+        result = client.generate_sync(prompt, num_variations)
 
-            if result.success:
-                st.success(f"Regenerated commentary for {ticker}")
-                logger.info("Regenerated %s successfully", ticker)
-                return True
-            else:
-                st.error(f"Regeneration failed: {result.error_message}")
-                logger.warning("Regeneration failed for %s: %s", ticker, result.error_message)
-                return False
+        # Update the review item with new result
+        item.result = result
+        item.thesis_found = thesis_result.found
+        item.selected_variation = 0
+        item.edited_text = ""
+        item.status = ApprovalStatus.PENDING
 
-        except Exception as e:
-            st.error(f"Error regenerating {ticker}: {e}")
+        # Track costs
+        st.session_state.total_cost_usd += result.cost_usd
+        st.session_state.total_tokens += result.usage.total_tokens
+
+        # Also update generation_results for consistency
+        key = f"{strategy_name}|{ticker}"
+        st.session_state.generation_results[key] = {
+            "holding": holding,
+            "strategy": strategy_name,
+            "result": result,
+            "thesis_found": thesis_result.found,
+        }
+
+        if result.success:
+            logger.info("Regenerated %s successfully", ticker)
+            return True
+        else:
+            st.error(f"Regeneration failed: {result.error_message}")
+            logger.warning("Regeneration failed for %s: %s", ticker, result.error_message)
+            return False
+
+    except Exception as e:
+        st.error(f"Error regenerating {ticker}: {e}")
             logger.exception("Regeneration error for %s", ticker)
             return False
 
@@ -765,17 +762,6 @@ def render_review_view() -> None:
             st.rerun()
         return
 
-    # Check for regeneration request
-    regen_request = st.session_state.get("regenerate_request")
-    if regen_request:
-        strategy = regen_request.get("strategy")
-        ticker = regen_request.get("ticker")
-        st.session_state.regenerate_request = None  # Clear the request
-
-        if strategy and ticker:
-            regenerate_single_item(strategy, ticker)
-            st.rerun()
-
     # Check for export trigger
     if st.session_state.get("trigger_export"):
         st.session_state.trigger_export = False
@@ -805,6 +791,21 @@ def render_review_view() -> None:
 def main() -> None:
     """Main application entry point."""
     init_session_state()
+
+    # Handle regeneration request at top level before any rendering
+    # This ensures the request is processed on the very next rerun
+    regen_request = st.session_state.get("regenerate_request")
+    if regen_request:
+        strategy = regen_request.get("strategy")
+        ticker = regen_request.get("ticker")
+        st.session_state.regenerate_request = None  # Clear before processing
+
+        if strategy and ticker:
+            with st.spinner(f"Regenerating commentary for {ticker}..."):
+                success = regenerate_single_item(strategy, ticker)
+            if success:
+                st.toast(f"Regenerated commentary for {ticker}")
+            st.rerun()
 
     # Title
     st.title("Portfolio Commentary Generator")
