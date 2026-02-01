@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -16,6 +17,31 @@ if TYPE_CHECKING:
     from src.ui.review import ReviewItem
 
 logger = logging.getLogger(__name__)
+
+
+def _get_export_key_suffix() -> str:
+    """
+    Get a unique suffix for export button keys.
+
+    Uses a counter stored in session state that increments on each
+    regeneration to ensure download buttons get fresh file references
+    after st.rerun() calls.
+    """
+    if "export_key_counter" not in st.session_state:
+        st.session_state.export_key_counter = 0
+    return str(st.session_state.export_key_counter)
+
+
+def increment_export_key() -> None:
+    """
+    Increment the export key counter.
+
+    Call this before st.rerun() when regenerating content to ensure
+    download buttons get new keys and fresh file references.
+    """
+    if "export_key_counter" not in st.session_state:
+        st.session_state.export_key_counter = 0
+    st.session_state.export_key_counter += 1
 
 
 def render_export_panel(session: ReviewSession) -> None:
@@ -91,6 +117,9 @@ def render_export_panel(session: ReviewSession) -> None:
     quarter_clean = session.quarter.replace(" ", "_")
     base_filename = f"{strategy_clean}_{quarter_clean}_{date_str}"
 
+    # Get unique key suffix to prevent stale file references after rerun
+    key_suffix = _get_export_key_suffix()
+
     # Word export
     with col1:
         exporter = WordExporter(config)
@@ -104,6 +133,7 @@ def render_export_panel(session: ReviewSession) -> None:
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 type="primary",
                 use_container_width=True,
+                key=f"dl_word_{key_suffix}",
             )
         else:
             st.error(f"Export failed: {result.error_message}")
@@ -119,6 +149,7 @@ def render_export_panel(session: ReviewSession) -> None:
             file_name=text_filename,
             mime="text/plain",
             use_container_width=True,
+            key=f"dl_text_{key_suffix}",
         )
 
     # CSV export
@@ -132,6 +163,7 @@ def render_export_panel(session: ReviewSession) -> None:
             file_name=csv_filename,
             mime="text/csv",
             use_container_width=True,
+            key=f"dl_csv_{key_suffix}",
         )
 
     # JSON export
@@ -145,6 +177,7 @@ def render_export_panel(session: ReviewSession) -> None:
             file_name=json_filename,
             mime="application/json",
             use_container_width=True,
+            key=f"dl_json_{key_suffix}",
         )
 
     st.divider()
