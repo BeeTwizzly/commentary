@@ -50,6 +50,20 @@ st.set_page_config(
 )
 
 
+def load_css() -> None:
+    """Load and inject custom CSS styles."""
+    css_path = Path(__file__).parent / "assets" / "streamlit_polish.css"
+    if css_path.exists():
+        css_content = css_path.read_text(encoding="utf-8")
+        st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
+    else:
+        logger.warning("CSS file not found: %s", css_path)
+
+
+# Inject custom styles globally
+load_css()
+
+
 def init_session_state() -> None:
     """Initialize session state variables."""
     defaults = {
