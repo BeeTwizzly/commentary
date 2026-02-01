@@ -79,26 +79,27 @@ def sample_prompt() -> AssembledPrompt:
 
 @pytest.fixture
 def mock_api_response():
-    """Create mock API response."""
+    """Create mock API response in Responses API format."""
     return {
-        "id": "chatcmpl-test",
-        "object": "chat.completion",
+        "id": "resp-test-12345",
+        "object": "response",
+        "status": "completed",
         "model": "gpt-4o",
-        "choices": [{
-            "index": 0,
-            "message": {
-                "role": "assistant",
-                "content": """[A] NVIDIA contributed strongly as datacenter revenue exceeded expectations. The AI infrastructure thesis remains intact with demand visibility extending into next year. We maintain our overweight position.
+        "output": [{
+            "type": "message",
+            "role": "assistant",
+            "content": [{
+                "type": "text",
+                "text": """[A] NVIDIA contributed strongly as datacenter revenue exceeded expectations. The AI infrastructure thesis remains intact with demand visibility extending into next year. We maintain our overweight position.
 
 [B] Our NVIDIA position drove relative performance this quarter. Datacenter growth of 150% year-over-year validated our AI demand thesis. The position remains a high-conviction holding.
 
 [C] NVIDIA was the primary contributor to returns. Management's commentary reinforced the durability of AI infrastructure spending. We continue to view the risk-reward favorably."""
-            },
-            "finish_reason": "stop"
+            }]
         }],
         "usage": {
-            "prompt_tokens": 500,
-            "completion_tokens": 150,
+            "input_tokens": 500,
+            "output_tokens": 150,
             "total_tokens": 650
         }
     }
@@ -212,11 +213,16 @@ class TestLLMClient:
             call_count += 1
 
             if call_count == 1:
-                # First call returns rate limit
+                # First call returns rate limit - raise HTTPStatusError
                 mock_response = MagicMock()
                 mock_response.status_code = 429
-                mock_response.headers = {"Retry-After": "1"}
-                return mock_response
+                mock_response.text = "Rate limit exceeded"
+                mock_response.headers = {"Retry-After": "0"}  # Use 0 for fast tests
+                raise httpx.HTTPStatusError(
+                    "Rate limited",
+                    request=MagicMock(),
+                    response=mock_response,
+                )
             else:
                 # Second call succeeds (json() is sync in httpx)
                 mock_response = MagicMock()
@@ -289,7 +295,8 @@ class TestGenerationResult:
         """Should provide convenient variations access."""
         from src.generation.response_parser import parse_llm_response
 
-        content = mock_api_response["choices"][0]["message"]["content"]
+        # Extract content from Responses API format
+        content = mock_api_response["output"][0]["content"][0]["text"]
         parsed = parse_llm_response(content)
 
         result = GenerationResult(
