@@ -20,10 +20,29 @@ def _get_env(key: str, default: str = "") -> str:
     # Try Streamlit secrets
     try:
         import streamlit as st
-        if hasattr(st, "secrets") and key in st.secrets:
-            return str(st.secrets[key])
-    except Exception:
-        pass
+        if hasattr(st, "secrets"):
+            # Try direct key access first (e.g., OPENAI_API_KEY = "...")
+            if key in st.secrets:
+                return str(st.secrets[key])
+
+            # Try lowercase version
+            key_lower = key.lower()
+            if key_lower in st.secrets:
+                return str(st.secrets[key_lower])
+
+            # Try nested access for common patterns
+            # e.g., [openai] api_key = "..." -> st.secrets.openai.api_key
+            if key == "OPENAI_API_KEY":
+                # Check for [openai] section
+                if "openai" in st.secrets:
+                    openai_secrets = st.secrets["openai"]
+                    for nested_key in ["api_key", "key", "API_KEY", "OPENAI_API_KEY"]:
+                        if hasattr(openai_secrets, nested_key):
+                            return str(getattr(openai_secrets, nested_key))
+                        if isinstance(openai_secrets, dict) and nested_key in openai_secrets:
+                            return str(openai_secrets[nested_key])
+    except Exception as e:
+        logger.warning("Error accessing Streamlit secrets for %s: %s", key, e)
 
     return default
 
@@ -241,9 +260,18 @@ _config: AppConfig | None = None
 
 
 def get_config() -> AppConfig:
-    """Get the application configuration (singleton)."""
+    """Get the application configuration (singleton).
+
+    Note: If the cached config has no API key configured, this will
+    attempt to reload it. This handles the case where the config was
+    loaded before Streamlit secrets were available.
+    """
     global _config
     if _config is None:
+        _config = AppConfig.from_env()
+    elif not _config.llm.is_configured:
+        # API key missing - try reloading in case secrets are now available
+        logger.debug("API key not configured, attempting to reload config")
         _config = AppConfig.from_env()
     return _config
 
