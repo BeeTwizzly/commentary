@@ -59,7 +59,15 @@ def load_custom_css() -> None:
 
     Call this inside main() to apply custom styling.
     CSS is loaded from assets/streamlit_polish.css.
+    Fonts are loaded via <link> tag separately to avoid @import issues.
     """
+    # Load Google Fonts via <link> tag (more reliable than @import in style blocks)
+    st.markdown(
+        '<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">',
+        unsafe_allow_html=True,
+    )
+
+    # Load and inject CSS
     if CSS_FILE.exists():
         try:
             css_content = CSS_FILE.read_text(encoding="utf-8")
