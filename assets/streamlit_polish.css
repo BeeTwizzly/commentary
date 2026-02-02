@@ -6,14 +6,13 @@
  *
  * This smooths rough edges without breaking Streamlit's layout engine.
  * Tested against Streamlit 1.3x component class names.
- *
- * NOTE: Google Fonts are loaded separately via <link> tag in load_custom_css()
- * to avoid @import issues in Streamlit's style injection.
  */
 
 /* ═══════════════════════════════════════════════════════
    1. GLOBAL FOUNDATIONS
    ═══════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 :root {
     --pcg-bg-primary: #0f1117;
