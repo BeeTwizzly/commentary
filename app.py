@@ -88,6 +88,9 @@ def init_session_state() -> None:
 
         # Regeneration state
         "regenerate_request": None,  # {"strategy": str, "ticker": str}
+
+        # Authentication state
+        "authenticated": False,
     }
 
     for key, default in defaults.items():
@@ -129,6 +132,55 @@ def format_elapsed_time(seconds: float) -> str:
     if hours > 0:
         return f"{hours}:{minutes:02d}:{secs:02d}"
     return f"{minutes}:{secs:02d}"
+
+
+def check_auth() -> bool:
+    """
+    Check authentication and show login form if needed.
+
+    Returns:
+        True if user is authenticated, False otherwise.
+
+    Credentials are read from .streamlit/secrets.toml:
+        [auth]
+        username = "your_username"
+        password = "your_password"
+    """
+    if st.session_state.get("authenticated"):
+        return True
+
+    # Check if auth is configured in secrets
+    try:
+        auth_config = st.secrets.get("auth", {})
+        expected_user = auth_config.get("username")
+        expected_pass = auth_config.get("password")
+    except Exception:
+        # No secrets configured, allow access (dev mode)
+        logger.warning("No auth secrets configured, running in open mode")
+        return True
+
+    if not expected_user or not expected_pass:
+        # Auth not configured, allow access
+        return True
+
+    # Show login form
+    st.title("Portfolio Commentary Generator")
+    st.markdown("---")
+
+    with st.form("login_form"):
+        st.subheader("Login")
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Login", use_container_width=True)
+
+        if submitted:
+            if username == expected_user and password == expected_pass:
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("Invalid credentials")
+
+    return False
 
 
 @st.cache_resource
@@ -822,6 +874,10 @@ def render_review_view() -> None:
 def main() -> None:
     """Main application entry point."""
     init_session_state()
+
+    # Authentication gate
+    if not check_auth():
+        st.stop()
 
     # Handle regeneration request at top level before any rendering
     # This ensures the request is processed on the very next rerun
