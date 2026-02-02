@@ -9,6 +9,7 @@ professional investment commentary with human review.
 from __future__ import annotations
 
 import logging
+import time
 from datetime import date
 from pathlib import Path
 
@@ -64,6 +65,8 @@ def init_session_state() -> None:
         "generation_in_progress": False,
         "generation_progress": 0.0,
         "generation_status": "",
+        "generation_start_time": None,  # timestamp when generation started
+        "generation_elapsed_seconds": None,  # final elapsed time (frozen on complete)
 
         # Cost tracking
         "total_cost_usd": 0.0,
@@ -113,6 +116,19 @@ def get_reporting_year() -> int:
     if month <= 3:
         return year - 1
     return year
+
+
+def format_elapsed_time(seconds: float) -> str:
+    """Format elapsed seconds as mm:ss or h:mm:ss."""
+    if seconds < 0:
+        return "0:00"
+    total_seconds = int(seconds)
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    secs = total_seconds % 60
+    if hours > 0:
+        return f"{hours}:{minutes:02d}:{secs:02d}"
+    return f"{minutes}:{secs:02d}"
 
 
 @st.cache_resource
@@ -381,6 +397,9 @@ def render_generation_section() -> None:
 
 def run_generation(holdings: list[tuple[str, HoldingData]]) -> None:
     """Run commentary generation for selected holdings."""
+    # Start the shot clock
+    st.session_state.generation_start_time = time.time()
+    st.session_state.generation_elapsed_seconds = None
     st.session_state.generation_in_progress = True
     st.session_state.generation_results = {}
 
@@ -400,11 +419,13 @@ def run_generation(holdings: list[tuple[str, HoldingData]]) -> None:
         st.error(f"Configuration error: {e}")
         st.info("Set OPENAI_API_KEY environment variable or configure in .streamlit/secrets.toml")
         st.session_state.generation_in_progress = False
+        st.session_state.generation_start_time = None
         return
 
     # Progress tracking
     progress_container = st.empty()
     status_container = st.empty()
+    timer_container = st.empty()
 
     total = len(holdings)
     completed = 0
@@ -413,12 +434,14 @@ def run_generation(holdings: list[tuple[str, HoldingData]]) -> None:
     total_tokens = 0
 
     for strategy_name, holding in holdings:
-        # Update progress
+        # Update progress and timer
+        elapsed = time.time() - st.session_state.generation_start_time
         st.session_state.generation_progress = completed / total
         st.session_state.generation_status = f"Generating: {holding.ticker} ({strategy_name})"
 
         progress_container.progress(completed / total, text=f"Processing {completed + 1}/{total}")
         status_container.caption(f"{holding.ticker} - {holding.company_name}")
+        timer_container.caption(f"⏱️ Elapsed: {format_elapsed_time(elapsed)}")
 
         try:
             # Look up thesis
@@ -501,14 +524,20 @@ def run_generation(holdings: list[tuple[str, HoldingData]]) -> None:
     st.session_state.total_cost_usd += total_cost
     st.session_state.total_tokens += total_tokens
 
+    # Stop the shot clock and store final elapsed time
+    final_elapsed = time.time() - st.session_state.generation_start_time
+    st.session_state.generation_elapsed_seconds = final_elapsed
+    st.session_state.generation_start_time = None
+
     # Complete
     st.session_state.generation_in_progress = False
     st.session_state.generation_progress = 1.0
     st.session_state.generation_status = "Complete!"
 
     progress_container.progress(1.0, text="Complete!")
+    timer_container.caption(f"⏱️ Total time: {format_elapsed_time(final_elapsed)}")
     status_container.success(
-        f"Generated {completed}/{total} holdings. "
+        f"Generated {completed}/{total} holdings in {format_elapsed_time(final_elapsed)}. "
         f"Cost: ${total_cost:.4f}, Tokens: {total_tokens:,}"
     )
 
