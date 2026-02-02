@@ -49,34 +49,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Path to custom CSS file
-CSS_FILE = Path(__file__).parent / "assets" / "streamlit_polish.css"
-
-
-def load_custom_css() -> None:
-    """
-    Load and inject custom CSS styles.
-
-    Call this inside main() to apply custom styling.
-    CSS is loaded from assets/streamlit_polish.css.
-    Fonts are loaded via <link> tag separately to avoid @import issues.
-    """
-    # Load Google Fonts via <link> tag (more reliable than @import in style blocks)
-    st.markdown(
-        '<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">',
-        unsafe_allow_html=True,
-    )
-
-    # Load and inject CSS
-    if CSS_FILE.exists():
-        try:
-            css_content = CSS_FILE.read_text(encoding="utf-8")
-            st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
-        except Exception as e:
-            logger.warning("Failed to load custom CSS: %s", e)
-    else:
-        logger.debug("Custom CSS file not found: %s", CSS_FILE)
-
 
 def init_session_state() -> None:
     """Initialize session state variables."""
@@ -821,9 +793,6 @@ def render_review_view() -> None:
 def main() -> None:
     """Main application entry point."""
     init_session_state()
-
-    # Load custom CSS styling (safe to disable by removing this line)
-    load_custom_css()
 
     # Handle regeneration request at top level before any rendering
     # This ensures the request is processed on the very next rerun
